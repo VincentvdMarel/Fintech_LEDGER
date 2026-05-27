@@ -1,0 +1,29 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Generated data files (regenerate locally with python -m data.synthetic_gen)
+data/*.parquet
+data/*.duckdb
+
+# Trained model (regenerate locally with python run_pipeline.py)
+models/*.pkl
+
+# Jupyter / notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
