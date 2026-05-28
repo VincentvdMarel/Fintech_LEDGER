@@ -20,4 +20,16 @@ REASON_EXPLANATIONS = {
     "NO_BANK_DATA":               "No bank transaction data available — cannot underwrite.",
     "LIMITED_DATA":               "PSP data unavailable; max loan amount capped at EUR 15,000.",
     "YEAR1_CAP":                  "Year-1 pilot: maximum loan amount capped at EUR 25,000.",
+    # New — KYC
+    "UBO_MISMATCH":               "UBO / director identity mismatch — application declined pending KYC resolution.",
+    # New — Accounting
+    "LOW_VAT_PUNCTUALITY":        "BTW/VAT payments are late or incomplete in 30%+ of filing periods.",
+    "LOW_GROSS_MARGIN":           "Gross margin is below 15% — insufficient buffer for debt service.",
+    "REVENUE_INFLATION_SIGNAL":   "Accounting revenue exceeds bank credits by >15% — reconciliation required.",
+    # New — Marketplace
+    "POOR_MARKETPLACE_HEALTH":    "Marketplace account health score below 5.0 — enforcement risk.",
+    "HIGH_LATE_SHIPMENT_RATE":    "Late shipment rate exceeds 8% — customer satisfaction risk.",
+    # New — Webshop
+    "HIGH_CANCELLATION_RATE":     "Order cancellation rate exceeds 8% — demand quality concern.",
+    "HIGH_RETURN_RATE":           "Return rate exceeds 12% — product or fulfilment quality concern.",
 }

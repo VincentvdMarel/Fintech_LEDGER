@@ -19,10 +19,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
 # Features used by the shadow ML model.
-# Subset of all computed features — chosen for predictive value and stability.
 # Keep in sync with features/pipeline.py and features/missing_handler.py.
 ML_FEATURES = [
-    # Cashflow
+    # Cashflow (Source A)
     "monthly_net_cashflow_avg_3m",
     "monthly_net_cashflow_avg_6m",
     "cashflow_trend_delta",
@@ -35,28 +34,55 @@ ML_FEATURES = [
     "overdraft_dependency",
     "days_cash_on_hand",
     "inflow_concentration_hhi",
-    # Settlement & payments
+    # Settlement & payments (Source B)
     "settlement_delay_p95",
     "settlement_delay_median",
     "settlement_timing_variability",
     "supplier_pay_punctuality",
     "supplier_payout_lumpiness",
-    # Refunds & chargebacks
+    # Refunds & chargebacks (Source C)
     "refund_rate_30d",
     "refund_rate_ltm",
     "chargeback_rate_30d",
     "chargeback_rate_ltm",
     "refund_trend_3m",
-    # Concentration & GPV
+    "dispute_win_rate",
+    "buyer_concentration_hhi",
+    # Concentration & GPV (Source D)
     "platform_concentration",
     "seasonality_index",
     "gpv_trend_90d",
     "payment_method_card_pct",
-    # Operational
+    # Operational (Source E)
     "ad_spend_ratio_3m",
-    # Reconciliation & quality
+    # Reconciliation & quality (Source F)
     "bank_psp_recon_delta",
     "data_coverage_score",
+    # Webshop (Source G)
+    "cancellation_rate_90d",
+    "return_rate_90d",
+    "fulfillment_timeliness_pct",
+    "repeat_customer_rate_90d",
+    "aov_stability_cv",
+    "sku_concentration_hhi",
+    "discount_intensity_90d",
+    # Marketplace (Source H)
+    "marketplace_account_health_avg",
+    "marketplace_late_shipment_rate",
+    "marketplace_negative_feedback_rate",
+    "marketplace_gmv_share",
+    # Accounting (Source I)
+    "gross_margin_avg_6m",
+    "gross_margin_trend",
+    "ebitda_margin_avg",
+    "vat_punctuality",
+    "ap_days_avg",
+    "revenue_bank_delta_avg",
+    "owner_draw_ratio_6m",
+    # KYC (Source J)
+    "identity_changes_12m",
+    "kyc_days_since_last",
+    "kyc_verification_level_score",
     # Merchant info
     "monthly_gmv_avg_6m",
     "trading_months",

@@ -24,15 +24,31 @@ MAX_RECON_DELTA = 0.20                # 20% bank-PSP mismatch -> decline
 MAX_NEGATIVE_BALANCE_PCT = 0.50       # >50% days negative -> decline
 
 # -- Scored gate thresholds (green / amber / red boundaries) --
+# For standard gates: value > red  = red flag  (higher is worse)
+# For inverted gates: value < red  = red flag  (lower is worse) — handled in policy
 SCORED_GATES = {
-    "revenue_volatility_90d":    {"green": 0.25, "red": 0.45},
-    "refund_rate_ltm":           {"green": 0.03, "red": 0.08},
-    "settlement_delay_p95":      {"green": 5,    "red": 10},
-    "chargeback_rate_ltm":       {"green": 0.005,"red": 0.015},
-    "platform_concentration":    {"green": 0.40, "red": 0.65},
-    "net_cashflow_coverage":     {"green": 1.80, "red": 1.20},  # inverted: lower is worse
-    "supplier_pay_punctuality":  {"green": 0.90, "red": 0.70},  # inverted
-    "ad_spend_ratio_3m":         {"green": 0.15, "red": 0.30},
+    # Existing gates
+    "revenue_volatility_90d":           {"green": 0.25, "red": 0.45},
+    "refund_rate_ltm":                  {"green": 0.03, "red": 0.08},
+    "settlement_delay_p95":             {"green": 5,    "red": 10},
+    "chargeback_rate_ltm":              {"green": 0.005,"red": 0.015},
+    "platform_concentration":           {"green": 0.40, "red": 0.65},
+    "net_cashflow_coverage":            {"green": 1.80, "red": 1.20},  # inverted
+    "supplier_pay_punctuality":         {"green": 0.90, "red": 0.70},  # inverted
+    "ad_spend_ratio_3m":                {"green": 0.15, "red": 0.30},
+
+    # New gates — accounting (Source I)
+    "vat_punctuality":                  {"green": 0.90, "red": 0.70},  # inverted
+    "gross_margin_avg_6m":              {"green": 0.35, "red": 0.15},  # inverted
+    "revenue_bank_delta_avg":           {"green": 0.05, "red": 0.15},  # higher = worse (fraud signal)
+
+    # New gates — marketplace (Source H)
+    "marketplace_account_health_avg":   {"green": 8.0,  "red": 5.0},   # inverted
+    "marketplace_late_shipment_rate":   {"green": 0.02, "red": 0.08},
+
+    # New gates — webshop (Source G)
+    "cancellation_rate_90d":            {"green": 0.03, "red": 0.08},
+    "return_rate_90d":                  {"green": 0.05, "red": 0.12},
 }
 
 # -- Policy decision thresholds --

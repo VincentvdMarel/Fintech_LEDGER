@@ -20,6 +20,47 @@ import pandas as pd
 
 PESSIMISTIC_DEFAULTS: dict = {
 
+    # --- Group G: Webshop ---
+    "cancellation_rate_90d":            0.10,
+    "return_rate_90d":                  0.10,
+    "order_volume_trend_90d":          -0.10,
+    "fulfillment_timeliness_pct":       0.70,
+    "repeat_customer_rate_90d":         0.20,
+    "aov_stability_cv":                 0.50,
+    "sku_concentration_hhi":            1.0,
+    "discount_intensity_90d":           0.20,
+
+    # --- Group H: Marketplace ---
+    "marketplace_account_health_avg":   0.0,
+    "marketplace_account_health_trend": -0.10,
+    "marketplace_payout_hold_flag":     True,
+    "marketplace_late_shipment_rate":   0.20,
+    "marketplace_negative_feedback_rate": 0.10,
+    "marketplace_policy_violations_6m": 3,
+    "marketplace_gmv_share":            0.0,
+    "marketplace_payout_lag_avg":       14.0,
+
+    # --- Group I: Accounting ---
+    "gross_margin_avg_6m":              0.0,
+    "gross_margin_trend":              -0.10,
+    "ebitda_margin_avg":               -0.10,
+    "vat_punctuality":                  0.0,
+    "ap_days_avg":                      90.0,
+    "ar_days_avg":                      60.0,
+    "revenue_bank_delta_avg":           0.20,
+    "owner_draw_ratio_6m":              0.20,
+
+    # --- Group J: KYC ---
+    "ubo_director_match":               False,
+    "ubo_verified":                     False,
+    "identity_changes_12m":             3,
+    "kyc_days_since_last":              730.0,
+    "kyc_verification_level_score":     0.33,
+
+    # --- PSP advanced ---
+    "dispute_win_rate":                 0.0,
+    "buyer_concentration_hhi":          1.0,
+
     # --- Group A: Cashflow Stability ---
     "monthly_net_cashflow_avg_3m":      0.0,    # no cashflow data
     "monthly_net_cashflow_avg_6m":      0.0,
@@ -76,46 +117,16 @@ PESSIMISTIC_DEFAULTS: dict = {
 # ---------------------------------------------------------------------------
 
 FUTURE_DEFAULTS: dict = {
+    # Features still requiring data sources not yet generated.
+    # Activate by moving to PESSIMISTIC_DEFAULTS once the source is available.
 
-    # Source C — Webshop
-    "cancellation_rate_90d":            0.10,
-    "return_initiation_rate_90d":       0.10,
-    "fulfillment_timeliness_pct":       0.70,
-    "repeat_customer_rate_90d":         0.20,
-    "aov_stability_cv":                 0.50,
-    "sku_concentration_hhi":            1.0,
-    "discount_intensity_90d":           0.20,
-    "order_volume_trend_90d":           0.0,
-
-    # Source D — Marketplace
-    "marketplace_gmv_share":            0.0,
-    "marketplace_account_health_score": 0.0,
-    "payout_holds_active":              1.0,    # assume holds active (worst)
-    "late_shipment_rate_90d":           0.20,
-    "negative_feedback_rate_ltm":       0.10,
-    "policy_violation_count_ltm":       1.0,
-    "marketplace_payout_lag_std":       10.0,
-
-    # Source E — Accounting / Bookkeeping
-    "vat_punctuality":                  0.0,    # assume unpunctual
-    "gross_margin_proxy":               0.0,    # assume no margin
-    "current_ratio":                    0.5,    # illiquid
-    "ap_days":                          90.0,   # slow supplier payments
-    "ar_days":                          60.0,
-    "expense_rigidity_ratio":           0.80,   # mostly fixed costs
-    "owner_draw_leakage_ratio":         0.20,
-
-    # Source F — KYC Deep
-    "ubo_director_consistency":         0.0,    # assume mismatch
-    "identity_change_count_12m":        3.0,    # assume frequent changes
-    "circular_transaction_flag":        1.0,    # assume present
-    "orders_captures_mismatch":         0.20,   # 20% mismatch
-
-    # PSP advanced (requires additional PSP data fields)
-    "dispute_win_rate":                 0.0,    # lose all disputes
-    "authorization_capture_ratio":      0.80,   # 20% auth failures
-    "buyer_concentration_hhi":          1.0,    # single buyer
+    # PSP advanced (need authorization data from PSP)
+    "authorization_capture_ratio":      0.80,
     "fraud_flag_rate_90d":              0.05,
+
+    # KYC deep (need UBO registry API)
+    "circular_transaction_flag":        1.0,
+    "orders_captures_mismatch":         0.20,
 }
 
 

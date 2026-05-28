@@ -34,6 +34,10 @@ def _check_knockouts(f: dict) -> list[str]:
     if f.get("monthly_gmv_avg_6m", 0) < config.MIN_MONTHLY_GMV:
         codes.append("REVENUE_TOO_LOW")
 
+    # KYC: UBO / director mismatch is a hard decline per spec §7
+    if not f.get("ubo_director_match", True):
+        codes.append("UBO_MISMATCH")
+
     return codes
 
 
@@ -46,49 +50,56 @@ def _score_gates(f: dict) -> tuple[int, int, list[str]]:
     amber = 0
     codes = []
 
-    gate_features = {
-        "revenue_volatility_90d":   f.get("revenue_volatility_90d", 0.50),
-        "refund_rate_ltm":          f.get("refund_rate_ltm", 0.05),
-        "settlement_delay_p95":     f.get("settlement_delay_p95", 10.0),
-        "chargeback_rate_ltm":      f.get("chargeback_rate_ltm", 0.01),
-        "platform_concentration":   f.get("platform_concentration", 1.0),
-        "ad_spend_ratio_3m":        f.get("ad_spend_ratio_3m", 0.20),
-    }
-
     # Standard gates: higher value = worse
-    code_map = {
-        "revenue_volatility_90d": "HIGH_REV_VOLATILITY",
-        "refund_rate_ltm": "HIGH_REFUND_RATE",
-        "settlement_delay_p95": "SETTLEMENT_DELAYS",
-        "chargeback_rate_ltm": "HIGH_CHARGEBACKS",
-        "platform_concentration": "PLATFORM_CONCENTRATION",
-        "ad_spend_ratio_3m": "HIGH_AD_DEPENDENCY",
+    standard_gates = {
+        "revenue_volatility_90d":         "HIGH_REV_VOLATILITY",
+        "refund_rate_ltm":                "HIGH_REFUND_RATE",
+        "settlement_delay_p95":           "SETTLEMENT_DELAYS",
+        "chargeback_rate_ltm":            "HIGH_CHARGEBACKS",
+        "platform_concentration":         "PLATFORM_CONCENTRATION",
+        "ad_spend_ratio_3m":              "HIGH_AD_DEPENDENCY",
+        # New
+        "revenue_bank_delta_avg":         "REVENUE_INFLATION_SIGNAL",
+        "marketplace_late_shipment_rate": "HIGH_LATE_SHIPMENT_RATE",
+        "cancellation_rate_90d":          "HIGH_CANCELLATION_RATE",
+        "return_rate_90d":                "HIGH_RETURN_RATE",
     }
 
-    for feat_name, value in gate_features.items():
+    for feat_name, code in standard_gates.items():
+        if feat_name not in config.SCORED_GATES:
+            continue
+        value = f.get(feat_name, config.SCORED_GATES[feat_name]["red"])
         thresholds = config.SCORED_GATES[feat_name]
         if value > thresholds["red"]:
             red += 1
-            codes.append(code_map[feat_name])
+            codes.append(code)
         elif value > thresholds["green"]:
             amber += 1
 
     # Inverted gates: lower value = worse
-    inverted = {
-        "net_cashflow_coverage":    f.get("net_cashflow_coverage", 0.0),
-        "supplier_pay_punctuality": f.get("supplier_pay_punctuality", 0.70),
+    inverted_gates = {
+        "net_cashflow_coverage":          "WEAK_CASHFLOW_COVERAGE",
+        "supplier_pay_punctuality":       "LATE_SUPPLIER_PAYMENTS",
+        # New
+        "vat_punctuality":                "LOW_VAT_PUNCTUALITY",
+        "gross_margin_avg_6m":            "LOW_GROSS_MARGIN",
+        "marketplace_account_health_avg": "POOR_MARKETPLACE_HEALTH",
     }
-    inv_codes = {
-        "net_cashflow_coverage": "WEAK_CASHFLOW_COVERAGE",
-        "supplier_pay_punctuality": "LATE_SUPPLIER_PAYMENTS",
-    }
-    for feat_name, value in inverted.items():
+
+    for feat_name, code in inverted_gates.items():
+        if feat_name not in config.SCORED_GATES:
+            continue
+        value = f.get(feat_name, config.SCORED_GATES[feat_name]["red"])
         thresholds = config.SCORED_GATES[feat_name]
         if value < thresholds["red"]:
             red += 1
-            codes.append(inv_codes[feat_name])
+            codes.append(code)
         elif value < thresholds["green"]:
             amber += 1
+
+    # Marketplace payout hold: treat as amber flag regardless of threshold
+    if f.get("marketplace_payout_hold_flag", False):
+        amber += 1
 
     return red, amber, codes
 
