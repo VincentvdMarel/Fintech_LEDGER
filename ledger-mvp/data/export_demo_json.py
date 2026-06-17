@@ -31,29 +31,12 @@ from ingestion.accounting_source import AccountingSource
 from ingestion.kyc_source import KYCSource
 from features.pipeline import compute_features
 from policy.credit_policy import credit_policy
-from models.train_shadow import score_merchant, ML_FEATURES
+from models.train_shadow import score_merchant, feature_importances, ML_FEATURES
 
 
-KEY_FEATURES = [
-    {"name": "net_cashflow_coverage",          "label": "Cashflow Coverage Ratio",     "source": "Bank",         "type": "inverted", "green": 1.80,  "red": 1.20,  "fmt": "ratio"},
-    {"name": "revenue_volatility_90d",         "label": "Revenue Volatility (90d)",    "source": "Bank",         "type": "standard", "green": 0.25,  "red": 0.45,  "fmt": "pct"},
-    {"name": "overdraft_dependency",           "label": "Overdraft Dependency",        "source": "Bank",         "type": "standard", "green": 0.10,  "red": 0.50,  "fmt": "pct"},
-    {"name": "days_cash_on_hand",              "label": "Days Cash on Hand",           "source": "Bank",         "type": "inverted", "green": 45,    "red": 15,    "fmt": "days"},
-    {"name": "refund_rate_ltm",                "label": "Refund Rate (LTM)",           "source": "PSP",          "type": "standard", "green": 0.03,  "red": 0.08,  "fmt": "pct"},
-    {"name": "chargeback_rate_ltm",            "label": "Chargeback Rate (LTM)",       "source": "PSP",          "type": "standard", "green": 0.005, "red": 0.015, "fmt": "pct"},
-    {"name": "settlement_delay_p95",           "label": "Settlement Delay P95",        "source": "PSP",          "type": "standard", "green": 5,     "red": 10,    "fmt": "days"},
-    {"name": "platform_concentration",         "label": "Platform Concentration",      "source": "PSP",          "type": "standard", "green": 0.40,  "red": 0.65,  "fmt": "hhi"},
-    {"name": "supplier_pay_punctuality",       "label": "Supplier Pay Regularity",     "source": "Bank",         "type": "inverted", "green": 0.90,  "red": 0.70,  "fmt": "pct"},
-    {"name": "ad_spend_ratio_3m",              "label": "Ad Spend Ratio (3m)",         "source": "Bank",         "type": "standard", "green": 0.15,  "red": 0.30,  "fmt": "pct"},
-    {"name": "vat_punctuality",                "label": "VAT Punctuality",             "source": "Accounting",   "type": "inverted", "green": 0.90,  "red": 0.70,  "fmt": "pct"},
-    {"name": "gross_margin_avg_6m",            "label": "Gross Margin (6m avg)",       "source": "Accounting",   "type": "inverted", "green": 0.35,  "red": 0.15,  "fmt": "pct"},
-    {"name": "bank_psp_recon_delta",           "label": "Bank–PSP Recon Gap",     "source": "Cross-source", "type": "standard", "green": 0.05,  "red": 0.20,  "fmt": "pct"},
-    {"name": "marketplace_account_health_avg", "label": "Marketplace Health Score",    "source": "Marketplace",  "type": "inverted", "green": 8.0,   "red": 5.0,   "fmt": "score"},
-    {"name": "cancellation_rate_90d",          "label": "Cancellation Rate (90d)",     "source": "Webshop",      "type": "standard", "green": 0.05,  "red": 0.12,  "fmt": "pct"},
-    {"name": "return_rate_90d",                "label": "Return Rate (90d)",           "source": "Webshop",      "type": "standard", "green": 0.08,  "red": 0.15,  "fmt": "pct"},
-    {"name": "fulfillment_timeliness_pct",     "label": "Fulfillment On-Time Rate",    "source": "Webshop",      "type": "inverted", "green": 0.90,  "red": 0.70,  "fmt": "pct"},
-    {"name": "ubo_director_match",             "label": "UBO / Director Match",        "source": "KYC",          "type": "bool",     "green": None,  "red": None,  "fmt": "bool"},
-]
+# LAYER 3 — the 18 dashboard signals + thresholds come straight from config
+# (single source of truth) so the deck can never drift from the policy.
+KEY_FEATURES = config.get_dashboard_signals()
 
 
 class _Enc(json.JSONEncoder):
@@ -105,7 +88,7 @@ def _thresh(cfg):
     if cfg["type"] == "bool": return "Must match"
     g, r, fmt = cfg["green"], cfg["red"], cfg["fmt"]
     def fv(v):
-        if fmt == "pct":   return f"{v*100:.0f}%"
+        if fmt == "pct":   return f"{v*100:.1f}%"   # one decimal (0.5% / 1.5%)
         if fmt == "ratio": return f"{v:.1f}×"
         if fmt == "days":  return f"{v:.0f}d"
         if fmt == "score": return f"{v:.0f}/10"
@@ -186,8 +169,11 @@ def main():
     root = Path(__file__).parent.parent
     os.chdir(root)
 
-    # HTML lives one level above ledger-mvp
-    html_path = root.parent / "ledger-deck_6.html"
+    # HTML deck lives in the project root (fall back to the parent dir if an
+    # older copy is kept one level up).
+    html_path = root / "ledger-deck_6.html"
+    if not html_path.exists() and (root.parent / "ledger-deck_6.html").exists():
+        html_path = root.parent / "ledger-deck_6.html"
 
     print("=" * 60)
     print("  Ledger — HTML Demo Data Export")
@@ -210,9 +196,10 @@ def main():
     if model_path.exists():
         with open(model_path, "rb") as fh:
             _shadow_model = pickle.load(fh)
-        # Human-readable labels — KEY_FEATURES covers the 15 scorecard ones; rest use title-cased name
+        # Human-readable labels — KEY_FEATURES covers the dashboard ones; rest use title-cased name
         _kf_labels = {cfg["name"]: cfg["label"] for cfg in KEY_FEATURES}
-        importances = list(zip(ML_FEATURES, _shadow_model.feature_importances_))
+        # Global importances from the calibrated shadow model (not per-merchant SHAP).
+        importances = list(feature_importances(_shadow_model).items())
         importances.sort(key=lambda x: x[1], reverse=True)
         ml_top_features = [
             {
@@ -253,6 +240,7 @@ def main():
             "reason_codes":           pol["reason_codes"],
             "explanations":           pol["explanations"],
             "manual_review_flags":    pol["manual_review_flags"],
+            "signal_pass_rate":       _sf(pol.get("signal_pass_rate")),  # display-only
             "scorecard":              _scorecard(feat_dict),
             "ml_score":               _sf(ml_score),
             "ml_top_features":        ml_top_features,

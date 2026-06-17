@@ -31,8 +31,11 @@ def make_decision(
     ----------
     merchant_id : str
     features : dict — computed feature vector
-    policy_result : dict — output of credit_policy()
-    ml_score : float | None — shadow model P(default), informational
+    policy_result : dict — output of credit_policy() (the ACTUAL decision)
+    ml_score : float | None — shadow model calibrated P(default)
+
+    The shadow ML score is LAYER 4: logged for monitoring only. It is attached
+    to the envelope for the audit trail but never alters policy_result.
 
     Returns
     -------
@@ -41,7 +44,7 @@ def make_decision(
     # Build explanation narrative
     explanations = policy_result.get("explanations", [])
 
-    # Add ML context (informational)
+    # Add ML context (informational / shadow only — never changes the decision)
     if ml_score is not None:
         if ml_score > 0.3:
             ml_note = (
@@ -73,7 +76,8 @@ def make_decision(
         "reason_codes": policy_result["reason_codes"],
         "explanations": explanations,
         "manual_review_flags": policy_result["manual_review_flags"],
-        "shadow_ml_score": round(ml_score, 4) if ml_score else None,
+        "signal_pass_rate": policy_result.get("signal_pass_rate"),  # display-only metric
+        "shadow_ml_score": round(ml_score, 4) if ml_score is not None else None,
         "shadow_ml_note": ml_note,
         "model_version": "champion_v1.0",
         "requires_credit_officer": True,  # Year 1: always

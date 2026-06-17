@@ -11,6 +11,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import config
 from ingestion.bank_source import BankTransactionSource
 from ingestion.psp_source import PSPTransactionSource
 from ingestion.webshop_source import WebshopOrderSource
@@ -25,43 +26,18 @@ from decisioning.decision_engine import make_decision
 st.set_page_config(page_title="Ledger MVP", page_icon="📊", layout="wide")
 st.title("📊 Ledger MVP — Credit Decision Demo")
 
-PRICING_LABELS = {"A": "11.0%", "B": "12.5%", "C": "14.0%"}
+# Pricing labels derived from config (single source of truth).
+PRICING_LABELS = {k: f"{v * 100:.1f}%" for k, v in config.PRICING_BANDS.items()}
 
 # ---------------------------------------------------------------------------
-# Scorecard configuration — 15 key underwriting features
+# LAYER 3 — Dashboard scorecard (DISPLAY ONLY).
+# The 18 signals and their thresholds are read directly from config so the UI
+# can never drift from the policy. type/fmt meaning:
+#   type "standard" : higher value = worse risk
+#   type "inverted" : lower  value = worse risk
+#   type "bool"     : True = good, False = bad
 # ---------------------------------------------------------------------------
-# type "standard" : higher value = worse risk
-# type "inverted" : lower  value = worse risk
-# type "bool"     : True = good, False = bad (knockout)
-# fmt             : controls value display formatting
-
-KEY_FEATURES = [
-    # Cashflow
-    {"name": "net_cashflow_coverage",          "label": "Cashflow Coverage Ratio",    "source": "Bank",         "type": "inverted", "green": 1.80,  "red": 1.20,  "fmt": "ratio"},
-    {"name": "revenue_volatility_90d",         "label": "Revenue Volatility (90d)",   "source": "Bank",         "type": "standard", "green": 0.25,  "red": 0.45,  "fmt": "pct"},
-    {"name": "overdraft_dependency",           "label": "Overdraft Dependency (180d)","source": "Bank",         "type": "standard", "green": 0.10,  "red": 0.50,  "fmt": "pct"},
-    {"name": "days_cash_on_hand",              "label": "Days Cash on Hand",          "source": "Bank",         "type": "inverted", "green": 45,    "red": 15,    "fmt": "days"},
-    # PSP
-    {"name": "refund_rate_ltm",                "label": "Refund Rate (LTM)",          "source": "PSP",          "type": "standard", "green": 0.03,  "red": 0.08,  "fmt": "pct"},
-    {"name": "chargeback_rate_ltm",            "label": "Chargeback Rate (LTM)",      "source": "PSP",          "type": "standard", "green": 0.005, "red": 0.015, "fmt": "pct"},
-    {"name": "settlement_delay_p95",           "label": "Settlement Delay P95",       "source": "PSP",          "type": "standard", "green": 5,     "red": 10,    "fmt": "days"},
-    {"name": "platform_concentration",         "label": "Platform Concentration (HHI)","source": "PSP",         "type": "standard", "green": 0.40,  "red": 0.65,  "fmt": "hhi"},
-    # Payments
-    {"name": "supplier_pay_punctuality",       "label": "Supplier Pay Regularity",    "source": "Bank",         "type": "inverted", "green": 0.90,  "red": 0.70,  "fmt": "pct"},
-    {"name": "ad_spend_ratio_3m",              "label": "Ad Spend Ratio (3m)",        "source": "Bank",         "type": "standard", "green": 0.15,  "red": 0.30,  "fmt": "pct"},
-    # Accounting
-    {"name": "vat_punctuality",                "label": "VAT Punctuality",            "source": "Accounting",   "type": "inverted", "green": 0.90,  "red": 0.70,  "fmt": "pct"},
-    {"name": "gross_margin_avg_6m",            "label": "Gross Margin (6m avg)",      "source": "Accounting",   "type": "inverted", "green": 0.35,  "red": 0.15,  "fmt": "pct"},
-    # Reconciliation & marketplace
-    {"name": "bank_psp_recon_delta",           "label": "Bank–PSP Recon Gap",         "source": "Cross-source", "type": "standard", "green": 0.05,  "red": 0.20,  "fmt": "pct"},
-    {"name": "marketplace_account_health_avg", "label": "Marketplace Health Score",   "source": "Marketplace",  "type": "inverted", "green": 8.0,   "red": 5.0,   "fmt": "score"},
-    # Webshop
-    {"name": "cancellation_rate_90d",          "label": "Cancellation Rate (90d)",    "source": "Webshop",      "type": "standard", "green": 0.05,  "red": 0.12,  "fmt": "pct"},
-    {"name": "return_rate_90d",                "label": "Return Rate (90d)",          "source": "Webshop",      "type": "standard", "green": 0.08,  "red": 0.15,  "fmt": "pct"},
-    {"name": "fulfillment_timeliness_pct",     "label": "Fulfillment On-Time Rate",   "source": "Webshop",      "type": "inverted", "green": 0.90,  "red": 0.70,  "fmt": "pct"},
-    # KYC
-    {"name": "ubo_director_match",             "label": "UBO / Director Match",       "source": "KYC",          "type": "bool",     "green": None,  "red": None,  "fmt": "bool"},
-]
+KEY_FEATURES = config.get_dashboard_signals()
 
 
 def _fmt(value, fmt_type: str) -> str:
@@ -89,7 +65,7 @@ def _threshold_desc(cfg: dict) -> str:
     g, r, fmt = cfg["green"], cfg["red"], cfg["fmt"]
 
     def fv(v):
-        if fmt == "pct":   return f"{v*100:.0f}%"
+        if fmt == "pct":   return f"{v*100:.1f}%"   # one decimal (0.5% / 1.5%)
         if fmt == "ratio": return f"{v:.1f}×"
         if fmt == "days":  return f"{v:.0f}d"
         if fmt == "score": return f"{v:.0f}/10"
@@ -231,6 +207,17 @@ try:
         s3.metric("🔴 Flag",    n_red)
         s4.metric("⚪ No data", n_nodata)
 
+        # Signal Pass Rate — DISPLAY-ONLY health index (green ÷ total signals).
+        # This number does NOT drive the decision; the policy rules do.
+        total_signals = len(KEY_FEATURES)
+        pass_rate = n_green / total_signals if total_signals else 0.0
+        st.metric("Signal Pass Rate", f"{pass_rate * 100:.0f}%")
+        st.caption(
+            "Signal Pass Rate is a display-only health index "
+            "(green ÷ total signals). Phase 1 does **not** approve by a numeric "
+            "score — the decision below is derived purely from policy rules."
+        )
+
         st.dataframe(
             scorecard.style.map(_style_status, subset=["Status"]),
             use_container_width=True,
@@ -273,9 +260,10 @@ try:
         try:
             ml_score = score_merchant(feat_dict)
             if ml_score is not None:
-                st.metric("P(Default)", f"{ml_score:.3f}")
+                st.metric("Calibrated P(Default)", f"{ml_score:.3f}")
                 st.caption(
-                    "Informational only — does NOT influence the decision."
+                    "Shadow only — calibrated probability of default, logged for "
+                    "monitoring. Does NOT influence the decision."
                 )
             else:
                 st.info("Shadow model not trained yet. Run `python run_pipeline.py` first.")

@@ -1,103 +1,90 @@
 """
-policy/credit_policy.py — Champion rules-based credit policy for Ledger.
+policy/credit_policy.py — Champion RULES-BASED credit policy for Ledger.
 
-Every loan in Year 1 also goes to manual credit officer review.
-This module produces the recommendation + reason codes.
+This is a hard-knockout + flag-counting + reason-code engine. A numeric score
+NEVER drives any credit decision; the decision is derived exclusively from the
+policy rules below. (A display-only "Signal Pass Rate" is computed for the
+dashboard but is explicitly not consulted here.)
+
+Four explicitly separated layers (see config.py):
+  LAYER 1  Hard knockouts        -> automatic DECLINE        (policy/knockouts.py)
+  LAYER 2  Scored policy gates    -> drive decision (red/amber + reason codes)
+  LAYER 3  Dashboard signals      -> display only (NOT here — see config/UI)
+  LAYER 4  Shadow-ML features      -> logged only (NOT here — see decision_engine)
+
+Decision policy (config thresholds):
+  any hard knockout                          -> DECLINE
+  red >= RED_DECLINE_THRESHOLD (3)           -> DECLINE
+  red >= RED_MANUAL_THRESHOLD  (2)           -> MANUAL_REVIEW
+  (red + amber) >= TOTAL_FLAGS_MANUAL (5)    -> MANUAL_REVIEW
+  otherwise                                  -> APPROVE (still credit-officer reviewed in Year 1)
+
+Every loan in Year 1 also goes to manual credit-officer review.
 """
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
+from policy.knockouts import check_knockouts          # LAYER 1 — single source
 from policy.reason_codes import REASON_EXPLANATIONS
 
 
-def _check_knockouts(f: dict) -> list[str]:
-    """Apply hard knock-out rules. Returns list of triggered reason codes."""
-    codes = []
-
-    if f.get("trading_months", 0) < config.MIN_TRADING_MONTHS:
-        codes.append("INSUFFICIENT_HISTORY")
-
-    if not f.get("kvk_active", False):
-        codes.append("KVK_INVALID")
-
-    if f.get("bank_psp_recon_delta", 1.0) > config.MAX_RECON_DELTA:
-        codes.append("RECON_FAIL")
-
-    if f.get("negative_balance_pct_90d", 1.0) > config.MAX_NEGATIVE_BALANCE_PCT:
-        codes.append("PERSISTENT_NEGATIVE_BALANCE")
-
-    if f.get("sanctions_hit", False):
-        codes.append("SANCTIONS_HIT")
-
-    if f.get("monthly_gmv_avg_6m", 0) < config.MIN_MONTHLY_GMV:
-        codes.append("REVENUE_TOO_LOW")
-
-    # KYC: UBO / director mismatch is a hard decline per spec §7
-    if not f.get("ubo_director_match", True):
-        codes.append("UBO_MISMATCH")
-
-    return codes
+# Reason codes attached to each scored gate. The gate direction (standard vs
+# inverted) and its thresholds come from config.SCORED_GATES — the single
+# source of truth — so this map only needs feature -> reason code.
+GATE_REASON_CODES = {
+    "revenue_volatility_90d":         "HIGH_REV_VOLATILITY",
+    "refund_rate_ltm":                "HIGH_REFUND_RATE",
+    "settlement_delay_p95":           "SETTLEMENT_DELAYS",
+    "chargeback_rate_ltm":            "HIGH_CHARGEBACKS",
+    "platform_concentration":         "PLATFORM_CONCENTRATION",
+    "ad_spend_ratio_3m":              "HIGH_AD_DEPENDENCY",
+    "revenue_bank_delta_avg":         "REVENUE_INFLATION_SIGNAL",
+    "marketplace_late_shipment_rate": "HIGH_LATE_SHIPMENT_RATE",
+    "cancellation_rate_90d":          "HIGH_CANCELLATION_RATE",
+    "return_rate_90d":                "HIGH_RETURN_RATE",
+    "net_cashflow_coverage":          "WEAK_CASHFLOW_COVERAGE",
+    "supplier_pay_punctuality":       "LATE_SUPPLIER_PAYMENTS",
+    "vat_punctuality":                "LOW_VAT_PUNCTUALITY",
+    "gross_margin_avg_6m":            "LOW_GROSS_MARGIN",
+    "marketplace_account_health_avg": "POOR_MARKETPLACE_HEALTH",
+}
 
 
 def _score_gates(f: dict) -> tuple[int, int, list[str]]:
     """
-    Evaluate scored gates S1-S8.
+    LAYER 2 — evaluate the 15 scored gates from config.SCORED_GATES.
+
+    Missing features fall back to the gate's RED threshold so that withholding
+    data can never improve the outcome (pessimistic by construction; the
+    feature pipeline also applies pessimistic defaults upstream).
+
     Returns (red_count, amber_count, triggered_reason_codes).
     """
     red = 0
     amber = 0
     codes = []
 
-    # Standard gates: higher value = worse
-    standard_gates = {
-        "revenue_volatility_90d":         "HIGH_REV_VOLATILITY",
-        "refund_rate_ltm":                "HIGH_REFUND_RATE",
-        "settlement_delay_p95":           "SETTLEMENT_DELAYS",
-        "chargeback_rate_ltm":            "HIGH_CHARGEBACKS",
-        "platform_concentration":         "PLATFORM_CONCENTRATION",
-        "ad_spend_ratio_3m":              "HIGH_AD_DEPENDENCY",
-        # New
-        "revenue_bank_delta_avg":         "REVENUE_INFLATION_SIGNAL",
-        "marketplace_late_shipment_rate": "HIGH_LATE_SHIPMENT_RATE",
-        "cancellation_rate_90d":          "HIGH_CANCELLATION_RATE",
-        "return_rate_90d":                "HIGH_RETURN_RATE",
-    }
+    for feat_name, thresholds in config.SCORED_GATES.items():
+        code = GATE_REASON_CODES[feat_name]
+        # Pessimistic default: missing value treated as the red boundary.
+        value = f.get(feat_name, thresholds["red"])
 
-    for feat_name, code in standard_gates.items():
-        if feat_name not in config.SCORED_GATES:
-            continue
-        value = f.get(feat_name, config.SCORED_GATES[feat_name]["red"])
-        thresholds = config.SCORED_GATES[feat_name]
-        if value > thresholds["red"]:
-            red += 1
-            codes.append(code)
-        elif value > thresholds["green"]:
-            amber += 1
+        if thresholds["type"] == "standard":      # higher = worse
+            if value > thresholds["red"]:
+                red += 1
+                codes.append(code)
+            elif value > thresholds["green"]:
+                amber += 1
+        else:                                      # inverted: lower = worse
+            if value < thresholds["red"]:
+                red += 1
+                codes.append(code)
+            elif value < thresholds["green"]:
+                amber += 1
 
-    # Inverted gates: lower value = worse
-    inverted_gates = {
-        "net_cashflow_coverage":          "WEAK_CASHFLOW_COVERAGE",
-        "supplier_pay_punctuality":       "LATE_SUPPLIER_PAYMENTS",
-        # New
-        "vat_punctuality":                "LOW_VAT_PUNCTUALITY",
-        "gross_margin_avg_6m":            "LOW_GROSS_MARGIN",
-        "marketplace_account_health_avg": "POOR_MARKETPLACE_HEALTH",
-    }
-
-    for feat_name, code in inverted_gates.items():
-        if feat_name not in config.SCORED_GATES:
-            continue
-        value = f.get(feat_name, config.SCORED_GATES[feat_name]["red"])
-        thresholds = config.SCORED_GATES[feat_name]
-        if value < thresholds["red"]:
-            red += 1
-            codes.append(code)
-        elif value < thresholds["green"]:
-            amber += 1
-
-    # Marketplace payout hold: treat as amber flag regardless of threshold
+    # Marketplace payout hold: extra amber flag regardless of threshold.
     if f.get("marketplace_payout_hold_flag", False):
         amber += 1
 
@@ -105,56 +92,75 @@ def _score_gates(f: dict) -> tuple[int, int, list[str]]:
 
 
 def _calculate_max_amount(f: dict) -> tuple[float, list[str]]:
-    """Calculate maximum approvable loan amount. Returns (amount, extra_codes)."""
+    """
+    Loan sizing:
+        limit = min(requested,
+                    monthly_cashflow * tenor * CASHFLOW_DEBT_SERVICE_RATIO,
+                    monthly_GMV * REVENUE_ANCHOR_MULTIPLIER,
+                    HARD_CAP_EUR)          # €25k hard cap — always enforced
+    Returns (amount, extra_reason_codes).
+    """
     codes = []
-    requested = f.get("requested_amount", 0)
-    tenor = f.get("requested_tenor_months", 6)
-
-    monthly_cf = f.get("monthly_net_cashflow_avg_6m", 0)
+    requested   = f.get("requested_amount", 0)
+    tenor       = f.get("requested_tenor_months", 6)
+    monthly_cf  = f.get("monthly_net_cashflow_avg_6m", 0)
     monthly_gmv = f.get("monthly_gmv_avg_6m", 0)
 
-    # Three-way cap
-    cf_cap = monthly_cf * tenor * config.CASHFLOW_DEBT_SERVICE_RATIO
-    rev_cap = monthly_gmv * config.REVENUE_ANCHOR_MULTIPLIER
-    product_cap = config.LOAN_MAX_EUR_YEAR1  # Year 1 pilot
+    cf_cap   = monthly_cf * tenor * config.CASHFLOW_DEBT_SERVICE_RATIO
+    rev_cap  = monthly_gmv * config.REVENUE_ANCHOR_MULTIPLIER
+    hard_cap = config.HARD_CAP_EUR                      # €25k Year-1 cap, explicit
 
-    max_amount = min(requested, cf_cap, rev_cap, product_cap)
-    max_amount = max(max_amount, 0)  # floor at zero
+    # The hard €25k cap is always one of the min() terms — it can never be bypassed.
+    max_amount = min(requested, cf_cap, rev_cap, hard_cap)
+    max_amount = max(max_amount, 0)                     # floor at zero
 
-    if max_amount < requested and product_cap == config.LOAN_MAX_EUR_YEAR1:
+    # Flag when the €25k hard cap is the binding constraint (common in the pilot).
+    if hard_cap <= min(requested, cf_cap, rev_cap):
         codes.append("YEAR1_CAP")
 
-    return round(max_amount, -2), codes  # round to nearest EUR 100
+    return round(max_amount, -2), codes                 # round to nearest €100
 
 
 def _assign_pricing_band(red: int, amber: int, coverage: float) -> str:
-    """Assign pricing band A/B/C based on risk profile."""
-    if red == 0 and amber <= 1 and coverage > 2.0:
+    """
+    Pricing band from the risk profile (config thresholds):
+        A (11.0%)  -> 0 red, <= 1 amber, coverage > 2.0
+        C (14.0%)  -> >= 1 red OR coverage < 1.5
+        B (12.5%)  -> everything else (non-declined)
+    """
+    if red == 0 and amber <= config.PRICING_A_MAX_AMBER and coverage > config.PRICING_A_MIN_COVERAGE:
         return "A"
-    elif red >= 1 or coverage < 1.5:
+    if red >= 1 or coverage < config.PRICING_C_MAX_COVERAGE:
         return "C"
-    else:
-        return "B"
+    return "B"
+
+
+def signal_pass_rate(red: int, amber: int) -> float:
+    """
+    DISPLAY-ONLY health index — NOT a decision input.
+
+    Signal Pass Rate = green gates / total gates, where a gate is "green" when
+    it raised neither a red nor an amber flag. This is surfaced on the dashboard
+    purely as an at-a-glance health number; the decision is made entirely by the
+    rules above and ignores this value.
+    """
+    total = len(config.SCORED_GATES)
+    green = max(total - red - amber, 0)
+    return round(green / total, 4) if total else 0.0
 
 
 def credit_policy(features: dict) -> dict:
     """
     Run the full champion credit policy on a feature vector.
 
-    Parameters
-    ----------
-    features : dict — output of compute_features(), as dict
-
-    Returns
-    -------
-    dict with keys: decision, max_amount, pricing_band, tenor_max_months,
-                    reason_codes, explanations, manual_review_flags
+    Returns dict with keys: decision, max_amount, pricing_band, tenor_max_months,
+    reason_codes, explanations, manual_review_flags, signal_pass_rate (display-only).
     """
     reason_codes = []
     manual_flags = []
 
-    # Step 1: Hard knock-outs
-    knockout_codes = _check_knockouts(features)
+    # ---- LAYER 1: Hard knockouts -> automatic DECLINE --------------------
+    knockout_codes = check_knockouts(features)
     if knockout_codes:
         return {
             "decision": "DECLINE",
@@ -162,28 +168,27 @@ def credit_policy(features: dict) -> dict:
             "pricing_band": None,
             "tenor_max_months": 0,
             "reason_codes": knockout_codes,
-            "explanations": [REASON_EXPLANATIONS[c] for c in knockout_codes],
+            "explanations": [REASON_EXPLANATIONS.get(c, c) for c in knockout_codes],
             "manual_review_flags": [],
+            "signal_pass_rate": 0.0,   # display-only; not evaluated for knockouts
         }
 
-    # Step 2: Scored gates
+    # ---- LAYER 2: Scored gates drive the decision ------------------------
     red, amber, gate_codes = _score_gates(features)
     reason_codes.extend(gate_codes)
 
-    # Step 3: Decision logic
-    if red >= config.DECLINE_RED_THRESHOLD:
+    # ---- Decision logic (pure rules — no numeric score involved) ---------
+    if red >= config.RED_DECLINE_THRESHOLD:
         decision = "DECLINE"
-    elif red >= 2 or (amber + red) >= (config.MAX_TOTAL_AMBER_RED_FOR_APPROVE + 1):
+    elif red >= config.RED_MANUAL_THRESHOLD or (red + amber) >= config.TOTAL_FLAGS_MANUAL_THRESHOLD:
         decision = "MANUAL_REVIEW"
         manual_flags.append(f"{red} red flags, {amber} amber flags")
     else:
         decision = "APPROVE"
-
-    # Year 1: ALL approvals also flagged for manual review
-    if decision == "APPROVE":
+        # Year 1: ALL approvals are also routed to a credit officer.
         manual_flags.append("YEAR1_ALL_MANUAL_REVIEW")
 
-    # Step 4: Amount & pricing (only if not declined)
+    # ---- Amount & pricing (only if not declined) -------------------------
     if decision == "DECLINE":
         max_amount = 0
         pricing_band = None
@@ -205,8 +210,7 @@ def credit_policy(features: dict) -> dict:
         "pricing_band": pricing_band,
         "tenor_max_months": tenor_max,
         "reason_codes": reason_codes,
-        "explanations": [
-            REASON_EXPLANATIONS.get(c, c) for c in reason_codes
-        ],
+        "explanations": [REASON_EXPLANATIONS.get(c, c) for c in reason_codes],
         "manual_review_flags": manual_flags,
+        "signal_pass_rate": signal_pass_rate(red, amber),  # LAYER 3 display only
     }

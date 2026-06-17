@@ -21,8 +21,8 @@ import pandas as pd
 PESSIMISTIC_DEFAULTS: dict = {
 
     # --- Group G: Webshop ---
-    "cancellation_rate_90d":            0.10,
-    "return_rate_90d":                  0.10,
+    "cancellation_rate_90d":            0.10,   # > red (0.08) -> red flag
+    "return_rate_90d":                  0.15,   # > red (0.12) -> red flag
     "order_volume_trend_90d":          -0.10,
     "fulfillment_timeliness_pct":       0.70,
     "repeat_customer_rate_90d":         0.20,
@@ -76,20 +76,21 @@ PESSIMISTIC_DEFAULTS: dict = {
     "inflow_concentration_hhi":         1.0,    # single inflow source (worst)
 
     # --- Group B: Settlement & Payment Delays ---
-    "settlement_delay_p95":             10.0,   # at red threshold
+    # Pessimistic = past the RED gate boundary so a missing source trips the gate.
+    "settlement_delay_p95":             12.0,   # > red (10) -> red flag
     "settlement_delay_median":          5.0,
     "settlement_delay_std":             5.0,
     "settlement_timing_variability":    1.0,    # highly variable
-    "supplier_pay_punctuality":         0.70,   # at red boundary
+    "supplier_pay_punctuality":         0.50,   # < red (0.70) -> red flag
     "supplier_payout_lumpiness":        1.0,    # very lumpy
 
-    # --- Group C: Refunds & Chargebacks ---
-    "refund_rate_30d":                  0.05,   # 5% refund rate
-    "refund_rate_90d":                  0.05,
-    "refund_rate_ltm":                  0.05,
-    "chargeback_rate_30d":              0.01,   # 1%
-    "chargeback_rate_90d":              0.01,
-    "chargeback_rate_ltm":              0.01,
+    # --- Group C: Refunds & Chargebacks (scored gates, not knockouts) ---
+    "refund_rate_30d":                  0.10,   # > red (0.08) -> red flag
+    "refund_rate_90d":                  0.10,
+    "refund_rate_ltm":                  0.10,
+    "chargeback_rate_30d":              0.02,   # > red (0.015) -> red flag
+    "chargeback_rate_90d":              0.02,
+    "chargeback_rate_ltm":              0.02,
     "refund_trend_3m":                  0.0,    # no trend data
 
     # --- Group D: Concentration, Seasonality & GPV ---
@@ -99,7 +100,7 @@ PESSIMISTIC_DEFAULTS: dict = {
     "payment_method_card_pct":          0.25,   # moderate card exposure
 
     # --- Group E: Operational ---
-    "ad_spend_ratio_3m":                0.20,   # moderate assumption
+    "ad_spend_ratio_3m":                0.35,   # > red (0.30) -> red flag
 
     # --- Group F: Reconciliation & Data Quality ---
     "bank_psp_recon_delta":             1.0,    # max mismatch

@@ -63,14 +63,14 @@ def _slope_normalized(series: pd.Series) -> float:
 def _refund_rate(subset: pd.DataFrame) -> float:
     gross = subset["gross_amount"].sum()
     if gross == 0:
-        return 0.05
+        return 0.10  # pessimistic: no data -> past red gate (see missing_handler)
     return float(subset.loc[subset["status"] == "refunded", "refund_amount"].sum() / gross)
 
 
 def _chargeback_rate(subset: pd.DataFrame) -> float:
     n = len(subset)
     if n == 0:
-        return 0.01
+        return 0.02  # pessimistic: no data -> past red gate (see missing_handler)
     return float((subset["status"] == "chargeback").sum() / n)
 
 
@@ -156,7 +156,7 @@ def _features_bank(bank: pd.DataFrame, today: pd.Timestamp) -> dict:
         f["supplier_pay_punctuality"]  = float((monthly_presence > 0).sum() / n_months)
         f["supplier_payout_lumpiness"] = _cv(sup["amount"].abs())
     else:
-        f["supplier_pay_punctuality"]  = 0.70
+        f["supplier_pay_punctuality"]  = 0.50  # pessimistic: < red gate (0.70)
         f["supplier_payout_lumpiness"] = 1.0
 
     # D2: Seasonality index (12m monthly bank credits)
@@ -171,7 +171,7 @@ def _features_bank(bank: pd.DataFrame, today: pd.Timestamp) -> dict:
     b3m = bank[bank["date"] >= d90]
     ad  = b3m[b3m["category"] == "advertising"]["amount"].abs().sum()
     rev = b3m[b3m["direction"] == "CREDIT"]["amount"].sum()
-    f["ad_spend_ratio_3m"] = float(ad / rev) if rev > 0 else 0.20
+    f["ad_spend_ratio_3m"] = float(ad / rev) if rev > 0 else 0.35  # pessimistic: > red (0.30)
 
     # Monthly GMV estimate (trailing 6m from bank credits)
     f["monthly_gmv_avg_6m"] = float(monthly_rev.tail(6).mean()) if len(monthly_rev) >= 1 else 0.0
@@ -199,7 +199,7 @@ def _features_psp(psp: pd.DataFrame, today: pd.Timestamp) -> dict:
         f["settlement_delay_std"]         = float(delays.std()) if len(delays) > 1 else 0.0
         f["settlement_timing_variability"] = _cv(delays)
     else:
-        f["settlement_delay_p95"]         = 10.0
+        f["settlement_delay_p95"]         = 12.0  # pessimistic: > red gate (10)
         f["settlement_delay_median"]      = 5.0
         f["settlement_delay_std"]         = 5.0
         f["settlement_timing_variability"] = 1.0

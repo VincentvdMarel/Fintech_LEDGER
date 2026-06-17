@@ -5,7 +5,7 @@ Provides batch scoring and score explanation helpers.
 
 import pandas as pd
 import numpy as np
-from models.train_shadow import ML_FEATURES, score_merchant
+from models.train_shadow import ML_FEATURES, score_merchant, feature_importances
 
 
 def batch_score(feature_df: pd.DataFrame, model=None) -> pd.Series:
@@ -27,12 +27,11 @@ def batch_score(feature_df: pd.DataFrame, model=None) -> pd.Series:
 def explain_score(features: dict, model) -> dict:
     """
     Provide a basic feature-contribution explanation for a shadow score.
-    Uses feature importances as a proxy (not SHAP — kept simple for MVP).
+    Uses GLOBAL feature importances as a proxy (not per-merchant SHAP).
     """
-    if not hasattr(model, "feature_importances_"):
+    importances = feature_importances(model)
+    if not importances:
         return {"note": "Feature importances not available for this model type."}
-
-    importances = dict(zip(ML_FEATURES, model.feature_importances_))
 
     # Rank features by importance, annotate with actual values
     ranked = sorted(importances.items(), key=lambda x: x[1], reverse=True)
@@ -46,6 +45,7 @@ def explain_score(features: dict, model) -> dict:
 
     return {
         "top_drivers": explanation,
-        "note": "Feature importances are global, not per-prediction. "
-                "SHAP or LIME should be added for production explanations.",
+        "note": "Global importance, not per-merchant SHAP. "
+                "SHAP or LIME should be added for production explanations. "
+                "Shadow only — does not influence the credit decision.",
     }

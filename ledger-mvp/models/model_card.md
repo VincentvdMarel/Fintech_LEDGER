@@ -1,10 +1,17 @@
 # Model Card — Ledger Shadow ML v0.1
 
 ## Model Details
-- **Type:** GradientBoostingClassifier (scikit-learn)
-- **Target:** Synthetic default proxy (`is_bad_synthetic`)
-- **Features:** 15 interpretable features (see `ML_FEATURES` in `train_shadow.py`)
+- **Type:** GradientBoostingClassifier (scikit-learn) wrapped in
+  CalibratedClassifierCV → calibrated P(default)
+- **Hyperparameters:** 200 estimators · max depth 4 · learning rate 0.05 ·
+  no early stopping (see `config.SHADOW_*`)
+- **Target:** Synthetic default proxy (`is_bad_synthetic`); real repayment
+  outcomes in production
+- **Features:** 54 engineered features across 10 source families
+  (see `ML_FEATURES` in `train_shadow.py`); windows applied per-signal
 - **Training data:** 200 synthetic merchants, ~5% positive rate
+- **Output:** calibrated probability of default — shadow only, logged for
+  monitoring, NOT used in any credit decision
 
 ## Intended Use
 - Shadow scoring ONLY — no automated decisions

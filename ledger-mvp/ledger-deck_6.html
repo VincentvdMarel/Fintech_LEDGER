@@ -3689,7 +3689,7 @@ input, select, textarea { font: inherit; color: inherit; }
               <li>All data is mocked locally in the browser.</li>
               <li>No personal data is stored anywhere.</li>
               <li>No real underwriting decisions are made.</li>
-              <li>Logic is deterministic and visible in <code>app.js</code>.</li>
+              <li>Logic is deterministic and visible in the inline demo script and Python modules.</li>
             </ul>
           </div>
         </div>
@@ -3711,7 +3711,7 @@ input, select, textarea { font: inherit; color: inherit; }
         </div>
 
         <!-- EL Framework -->
-        <span class="eyebrow fade-in fade-in-delay-1">Expected Loss framework · what the model minimises</span>
+        <span class="eyebrow fade-in fade-in-delay-1">Expected Loss · design framework (which signals map to PD / LGD / EAD), not an implemented PD × LGD × EAD calculation</span>
         <div class="formula-row fade-in fade-in-delay-1">
           <div class="formula-part f-el">
             <div class="formula-symbol">EL</div>
@@ -3770,10 +3770,10 @@ input, select, textarea { font: inherit; color: inherit; }
             <h4>Shadow ML</h4>
             <ul>
               <li>Gradient boosting alongside the rules engine</li>
-              <li>No decisioning — informational only</li>
-              <li>Model output logged for calibration</li>
-              <li>Requires ~70 loans of repayment history</li>
-              <li>AUC target: 5-fold CV &gt; 0.80</li>
+              <li>No decisioning — calibrated P(default), logged only</li>
+              <li>Output logged against repayment outcomes</li>
+              <li>70 loans = commercial milestone</li>
+              <li>200+ loans = model validation / retraining threshold</li>
             </ul>
           </div>
           <div class="phase-box phase-future">
@@ -3790,7 +3790,7 @@ input, select, textarea { font: inherit; color: inherit; }
         </div>
 
         <!-- Data sources → signals -->
-        <span class="eyebrow fade-in fade-in-delay-3">Six data sources · risk signals by category</span>
+        <span class="eyebrow fade-in fade-in-delay-3">Six external connectors feed ten feature families</span>
         <div class="src-matrix fade-in fade-in-delay-3">
           <div class="src-card">
             <span class="src-label src-bank">A · Bank / PSD2</span>
@@ -3868,8 +3868,8 @@ input, select, textarea { font: inherit; color: inherit; }
           </div>
         </div>
 
-        <!-- Score computation -->
-        <span class="eyebrow fade-in fade-in-delay-1" style="margin-top:0;display:block;">Rules score · how 0–100 is computed from signals</span>
+        <!-- Decision policy: hard stops + flag counting (NO numeric score approves) -->
+        <span class="eyebrow fade-in fade-in-delay-1" style="margin-top:0;display:block;">Decision policy · hard stops + red/amber flag counting</span>
         <div class="score-compute-grid fade-in fade-in-delay-1">
 
           <div class="score-formula-card">
@@ -3879,25 +3879,26 @@ input, select, textarea { font: inherit; color: inherit; }
                 <div class="sf-line"></div>
                 <div class="sf-den">total signals</div>
               </div>
-              <div class="sf-op">×</div>
+              <div class="sf-op">=</div>
               <div class="sf-result">
-                <span class="sf-result-val">100</span>
-                <div class="sf-result-label">= Score (0–100)</div>
+                <span class="sf-result-val" style="font-size:1.05rem;line-height:1.2;">Signal<br>Pass Rate</span>
+                <div class="sf-result-label">display only — not the decision</div>
               </div>
             </div>
-            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:10px;">Score → tier mapping</div>
+            <p style="font-size:0.82rem;color:var(--text-dim);margin:0 0 14px;line-height:1.55;">Phase 1 does <strong style="color:var(--text-bright)">not</strong> approve by a numeric score. The Signal Pass Rate is a dashboard health index. The decision is derived purely from hard knockouts and red/amber gate counting:</p>
+            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:10px;">Decision policy</div>
             <div class="score-tier-map">
-              <div class="stm-row"><div class="stm-range">≥ 80</div><div class="tier-badge tier-a" style="width:28px;height:28px;font-size:0.82rem;">A</div><div class="stm-label">Approve · full amount</div></div>
-              <div class="stm-row"><div class="stm-range">60–79</div><div class="tier-badge tier-b" style="width:28px;height:28px;font-size:0.82rem;">B</div><div class="stm-label">Approve · standard terms</div></div>
-              <div class="stm-row"><div class="stm-range">40–59</div><div class="tier-badge tier-c" style="width:28px;height:28px;font-size:0.82rem;">C</div><div class="stm-label">Reduce limit / tenor</div></div>
-              <div class="stm-row"><div class="stm-range">20–39</div><div class="tier-badge tier-d" style="width:28px;height:28px;font-size:0.82rem;">D</div><div class="stm-label">Manual review required</div></div>
-              <div class="stm-row"><div class="stm-range" style="color:var(--coral-bright)">Hard stop</div><div class="tier-badge tier-x" style="width:28px;height:28px;">✗</div><div class="stm-label">Auto decline — score ignored</div></div>
+              <div class="stm-row" style="display:flex;justify-content:space-between;gap:12px;"><div class="stm-range" style="color:var(--coral-bright)">Any hard knockout</div><div class="stm-label" style="color:var(--coral-bright);font-family:var(--font-mono);text-align:right;">DECLINE</div></div>
+              <div class="stm-row" style="display:flex;justify-content:space-between;gap:12px;"><div class="stm-range">≥ 3 red gates</div><div class="stm-label" style="color:var(--coral-bright);font-family:var(--font-mono);text-align:right;">DECLINE</div></div>
+              <div class="stm-row" style="display:flex;justify-content:space-between;gap:12px;"><div class="stm-range">2 red gates</div><div class="stm-label" style="color:var(--gold);font-family:var(--font-mono);text-align:right;">MANUAL_REVIEW</div></div>
+              <div class="stm-row" style="display:flex;justify-content:space-between;gap:12px;"><div class="stm-range">≥ 5 total red + amber</div><div class="stm-label" style="color:var(--gold);font-family:var(--font-mono);text-align:right;">MANUAL_REVIEW</div></div>
+              <div class="stm-row" style="display:flex;justify-content:space-between;gap:12px;"><div class="stm-range">Otherwise</div><div class="stm-label" style="color:var(--green-bright);font-family:var(--font-mono);text-align:right;">APPROVE</div></div>
             </div>
-            <p style="font-size:0.82rem;color:var(--text-muted);margin:12px 0 0;line-height:1.55;">Each of the 18 scorecard signals has equal weight. Amber = not green = 0 contribution. Hard stops override the score entirely — a 95/100 is still declined if sanctions or UBO mismatch.</p>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin:12px 0 0;line-height:1.55;">Amber is not zero-weight: it feeds both the ≥ 5 manual-review trigger and the pricing band. A hard knockout overrides everything — a 100% Signal Pass Rate is still declined on a sanctions or UBO mismatch.</p>
           </div>
 
           <div class="score-dots-panel">
-            <div class="sdg-header">Example · Volta Electronics · 12/18 green = 67 → Tier B</div>
+            <div class="sdg-header">Example · Volta Electronics · 12/18 green = 67% Signal Pass Rate (display only)</div>
             <div class="signal-dots-grid">
               <div class="sdg-row">
                 <div class="sdg-label">Bank / PSD2</div>
@@ -3968,7 +3969,7 @@ input, select, textarea { font: inherit; color: inherit; }
                     <div class="sdg-legend-item"><div class="sdg-dot sdg-dot-red"></div>0 red</div>
                   </div>
                 </div>
-                <div class="sdg-count sdg-count-final">12/18 = 67</div>
+                <div class="sdg-count sdg-count-final">12/18 = 67% pass rate</div>
               </div>
             </div>
           </div>
@@ -3991,23 +3992,23 @@ input, select, textarea { font: inherit; color: inherit; }
               <div class="ml-arch-box">
                 <div class="ml-arch-icon">⚙️</div>
                 <div class="ml-arch-title">Feature engineering</div>
-                <div class="ml-arch-sub">60 features · 4 time windows · delta signals</div>
+                <div class="ml-arch-sub">54 features · 10 source families · cross-source vector</div>
               </div>
               <div class="ml-arch-arrow">→</div>
               <div class="ml-arch-box">
                 <div class="ml-arch-icon">🌲</div>
-                <div class="ml-arch-title">LightGBM</div>
-                <div class="ml-arch-sub">500 trees · max depth 6 · early stopping</div>
+                <div class="ml-arch-title">GradientBoostingClassifier</div>
+                <div class="ml-arch-sub">scikit-learn · 200 estimators · max depth 4 · lr 0.05</div>
               </div>
               <div class="ml-arch-arrow">→</div>
               <div class="ml-arch-box ml-arch-output">
                 <div class="ml-arch-icon">📊</div>
-                <div class="ml-arch-title">P(Default)</div>
-                <div class="ml-arch-sub">0–1 · shadow only · logged, not used</div>
+                <div class="ml-arch-title">Calibrated P(Default)</div>
+                <div class="ml-arch-sub">shadow only · logged, not used</div>
               </div>
             </div>
 
-            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:8px;">Feature time windows (per base signal)</div>
+            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:8px;">Feature windows (applied per signal, not a uniform grid)</div>
             <div class="ml-windows-grid" style="margin-bottom:20px;">
               <div class="ml-window-tag">30-day</div>
               <div class="ml-window-tag">90-day</div>
@@ -4015,7 +4016,7 @@ input, select, textarea { font: inherit; color: inherit; }
               <div class="ml-window-tag">LTM (trailing 12m)</div>
             </div>
 
-            <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.55;margin:0 0 16px;">Each of the 15 core scorecard signals is expanded into 4 time-window variants, plus short-vs-long delta signals and seasonality-adjusted versions. Cross-source reconciliation gaps are added as standalone features. Total: ~60 features.</p>
+            <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.55;margin:0 0 16px;"><strong>Input:</strong> a 54-feature cross-source vector across 10 source families, with windows applied per-signal (not a uniform 15×4 grid). <strong>Preprocessing:</strong> pessimistic defaults applied at the pipeline level, so a missing source cannot improve a profile. <strong>Target:</strong> a synthetic default proxy today; real repayment outcomes in production. Output is a calibrated P(default).</p>
 
             <div style="padding:14px 16px;background:var(--lavender-soft);border:1px solid rgba(168,146,214,0.3);border-radius:var(--r-sm);">
               <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--lavender-bright);margin-bottom:6px;">Shadow mode guarantee</div>
@@ -4024,15 +4025,15 @@ input, select, textarea { font: inherit; color: inherit; }
           </div>
 
           <div class="ml-metrics-panel">
-            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px;">Phase 3 entry criteria</div>
+            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px;">Data milestones (not an accuracy claim)</div>
             <div class="ml-metrics-row">
               <div class="ml-metric-card">
-                <div class="ml-metric-val">&gt; 0.80</div>
-                <div class="ml-metric-label">5-fold CV AUC</div>
+                <div class="ml-metric-val">70</div>
+                <div class="ml-metric-label">Loans · commercial milestone</div>
               </div>
               <div class="ml-metric-card">
-                <div class="ml-metric-val">70+</div>
-                <div class="ml-metric-label">Repaid loans</div>
+                <div class="ml-metric-val">200+</div>
+                <div class="ml-metric-label">Loans · model validation / retrain</div>
               </div>
               <div class="ml-metric-card">
                 <div class="ml-metric-val">15 mo</div>
@@ -4040,11 +4041,12 @@ input, select, textarea { font: inherit; color: inherit; }
               </div>
               <div class="ml-metric-card">
                 <div class="ml-metric-val">SHAP</div>
-                <div class="ml-metric-label">Explainability</div>
+                <div class="ml-metric-label">Per-application explainability</div>
               </div>
             </div>
+            <p style="font-size:0.76rem;color:var(--text-muted);margin:0 0 14px;line-height:1.5;">At a ~5% default rate, 70 loans is only 3–4 defaults — far too few to validate an AUC. We treat 70 as a commercial milestone and 200+ as the model-validation / retraining threshold; no accuracy is claimed before then.</p>
 
-            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:10px;margin-top:6px;">Global feature importance (illustrative)</div>
+            <div style="font-family:var(--font-mono);font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:10px;margin-top:6px;">Global importance, not per-merchant SHAP (illustrative)</div>
             <ul class="fi-chart">
               <li class="fi-row">
                 <span class="fi-name">Revenue Volatility 180d</span>
@@ -4095,74 +4097,84 @@ input, select, textarea { font: inherit; color: inherit; }
         <!-- Tier table + limit sizing -->
         <div class="model-2col fade-in fade-in-delay-4">
           <div>
-            <span class="eyebrow">Risk tiers · Phase 1 policy engine</span>
+            <span class="eyebrow">Decision policy · backend condition → result</span>
             <div class="tier-wrap">
               <div class="tier-head">
-                <span>Tier</span>
-                <span>Score</span>
-                <span>Profile</span>
-                <span style="text-align:right">Action</span>
+                <span style="grid-column:span 3;">Backend condition</span>
+                <span style="text-align:right">Result</span>
               </div>
               <div class="tier-row">
-                <div class="tier-badge tier-a">A</div>
-                <div class="tier-score">≥ 80 / 100</div>
-                <div class="tier-profile">Stable, diversified, low disputes</div>
-                <div class="tier-action">Approve · full amount</div>
+                <div class="tier-profile" style="grid-column:span 3;">Any hard knockout (1 of 7)</div>
+                <div class="tier-action" style="color:var(--coral-bright)">DECLINE</div>
               </div>
               <div class="tier-row">
-                <div class="tier-badge tier-b">B</div>
-                <div class="tier-score">60 – 79</div>
-                <div class="tier-profile">Minor weaknesses in one area</div>
-                <div class="tier-action">Approve · standard terms</div>
+                <div class="tier-profile" style="grid-column:span 3;">≥ 3 red gates</div>
+                <div class="tier-action" style="color:var(--coral-bright)">DECLINE</div>
               </div>
               <div class="tier-row">
-                <div class="tier-badge tier-c">C</div>
-                <div class="tier-score">40 – 59</div>
-                <div class="tier-profile">Multiple moderate risk flags</div>
-                <div class="tier-action">Reduce limit / tenor</div>
+                <div class="tier-profile" style="grid-column:span 3;">2 red gates</div>
+                <div class="tier-action" style="color:var(--gold)">MANUAL_REVIEW</div>
               </div>
               <div class="tier-row">
-                <div class="tier-badge tier-d">D</div>
-                <div class="tier-score">20 – 39</div>
-                <div class="tier-profile">Near-decline, high uncertainty</div>
-                <div class="tier-action">Manual review required</div>
+                <div class="tier-profile" style="grid-column:span 3;">≥ 5 total red + amber flags</div>
+                <div class="tier-action" style="color:var(--gold)">MANUAL_REVIEW</div>
               </div>
               <div class="tier-row">
-                <div class="tier-badge tier-x">✗</div>
-                <div class="tier-score" style="color:var(--coral-bright)">Hard stop</div>
-                <div class="tier-profile">KYC fail · sanctions · recon mismatch</div>
-                <div class="tier-action" style="color:var(--coral-bright)">Automatic decline</div>
+                <div class="tier-profile" style="grid-column:span 3;">Otherwise</div>
+                <div class="tier-action" style="color:var(--green-bright)">APPROVE*</div>
+              </div>
+            </div>
+            <p style="font-size:0.76rem;color:var(--text-muted);margin:8px 0 0;line-height:1.5;">*Every approval is still credit-officer reviewed in Year 1.</p>
+
+            <span class="eyebrow" style="display:block;margin-top:24px;">Pricing band · APR</span>
+            <div class="tier-wrap">
+              <div class="tier-head">
+                <span style="grid-column:span 3;">Condition</span>
+                <span style="text-align:right">Band</span>
+              </div>
+              <div class="tier-row">
+                <div class="tier-profile" style="grid-column:span 3;">0 red, ≤ 1 amber, coverage &gt; 2.0</div>
+                <div class="tier-action" style="color:var(--green-bright)">A · 11.0%</div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-profile" style="grid-column:span 3;">≥ 1 red <em>or</em> coverage &lt; 1.5</div>
+                <div class="tier-action" style="color:var(--gold)">C · 14.0%</div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-profile" style="grid-column:span 3;">Everything else (non-declined)</div>
+                <div class="tier-action" style="color:var(--teal)">B · 12.5%</div>
               </div>
             </div>
 
-            <span class="eyebrow" style="display:block;margin-top:28px;">Hard stops — automatic decline regardless of score</span>
+            <span class="eyebrow" style="display:block;margin-top:24px;">Hard knockouts — automatic decline (the 7 real stops)</span>
             <div class="hard-stops">
               <div class="hard-stop">Sanctions / PEP hit</div>
-              <div class="hard-stop">KvK inactive or invalid</div>
+              <div class="hard-stop">KvK inactive</div>
               <div class="hard-stop">UBO / director mismatch</div>
-              <div class="hard-stop">Persistent recon gap</div>
-              <div class="hard-stop">Refund rate &gt; 8%</div>
-              <div class="hard-stop">Chargeback rate &gt; 2%</div>
+              <div class="hard-stop">Bank–PSP recon gap &gt; 20%</div>
+              <div class="hard-stop">Trading history &lt; 24 months</div>
+              <div class="hard-stop">Monthly GMV &lt; €25k</div>
+              <div class="hard-stop">Negative balance &gt; 50% of days</div>
             </div>
+            <p style="font-size:0.76rem;color:var(--text-muted);margin:8px 0 0;line-height:1.5;">Refund rate and chargeback rate are <strong>not</strong> knockouts — they are scored gates (chargeback red = 1.5%).</p>
           </div>
 
           <div>
             <span class="eyebrow">Limit sizing formula</span>
             <div class="limit-box">
-              <div class="limit-box-label">Base limit (before risk adjustments)</div>
+              <div class="limit-box-label">Approved limit</div>
               <div class="limit-formula">
-                Base = min(<br>
-                &nbsp;&nbsp;<strong>25% of 90-day GMV</strong>,<br>
-                &nbsp;&nbsp;<strong>3× monthly cashflow</strong>,<br>
-                &nbsp;&nbsp;<strong>liquidity-based cap</strong><br>
+                limit = min(<br>
+                &nbsp;&nbsp;<strong>requested amount</strong>,<br>
+                &nbsp;&nbsp;<strong>monthly cashflow × tenor × 0.33</strong>,<br>
+                &nbsp;&nbsp;<strong>monthly GMV × 2.5</strong>,<br>
+                &nbsp;&nbsp;<strong>€25k Year-1 hard cap</strong><br>
                 )
               </div>
               <div class="limit-adj">
-                <span>Adjust down for:</span>
-                · Revenue volatility &gt; 35%<br>
-                · Platform concentration &gt; 40%<br>
-                · Settlement delays &gt; 7 days<br>
-                · Gross margin &lt; 20%
+                <span>The €25k cap is always enforced</span>
+                In the pilot it usually binds — most approvals are sized at the
+                €25,000 Year-1 ceiling rather than the cashflow or GMV anchors.
               </div>
             </div>
 
@@ -4172,7 +4184,7 @@ input, select, textarea { font: inherit; color: inherit; }
                 <li>High seasonality amplitude → shorter tenor</li>
                 <li>Low liquidity buffer → shorter tenor</li>
                 <li>Cashflow instability → max 9 months</li>
-                <li>Tier A / B → up to 18 months eligible</li>
+                <li>Clean profile (0 red gates) → up to 18 months eligible</li>
               </ul>
             </div>
 
@@ -4426,7 +4438,7 @@ input, select, textarea { font: inherit; color: inherit; }
                 </div>
                 <div class="ml-tier" id="ml-tier">—</div>
                 <ul class="ml-drivers" id="ml-drivers"></ul>
-                <p class="ml-disclaimer">Gradient boosting model · 60 features · 5-fold CV AUC. Informational only — does not influence the credit decision. <a href="#model" style="color:var(--lavender-bright);text-decoration:underline;text-underline-offset:2px;">See model architecture →</a></p>
+                <p class="ml-disclaimer">GradientBoostingClassifier · 54 features · calibrated P(default), shadow only. Logged for monitoring — does not influence the credit decision. <a href="#model" style="color:var(--lavender-bright);text-decoration:underline;text-underline-offset:2px;">See model architecture →</a></p>
               </div>
 
               <div class="dash-card">
@@ -5052,12 +5064,13 @@ input, select, textarea { font: inherit; color: inherit; }
       "manual_review_flags": [
         "YEAR1_ALL_MANUAL_REVIEW"
       ],
+      "signal_pass_rate": 0.7333,
       "scorecard": [
         {
           "name": "net_cashflow_coverage",
           "label": "Cashflow Coverage Ratio",
           "source": "Bank",
-          "value": "16.83×",
+          "value": "17.48×",
           "status": "green",
           "thresholds": "Green ≥ 1.8×  ·  Red < 1.2×"
         },
@@ -5065,9 +5078,9 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "revenue_volatility_90d",
           "label": "Revenue Volatility (90d)",
           "source": "Bank",
-          "value": "34.5%",
+          "value": "33.3%",
           "status": "amber",
-          "thresholds": "Green ≤ 25%  ·  Red > 45%"
+          "thresholds": "Green ≤ 25.0%  ·  Red > 45.0%"
         },
         {
           "name": "overdraft_dependency",
@@ -5075,13 +5088,13 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Bank",
           "value": "0.0%",
           "status": "green",
-          "thresholds": "Green ≤ 10%  ·  Red > 50%"
+          "thresholds": "Green ≤ 10.0%  ·  Red > 50.0%"
         },
         {
           "name": "days_cash_on_hand",
           "label": "Days Cash on Hand",
           "source": "Bank",
-          "value": "472.2 days",
+          "value": "527.8 days",
           "status": "green",
           "thresholds": "Green ≥ 45d  ·  Red < 15d"
         },
@@ -5091,7 +5104,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "2.9%",
           "status": "green",
-          "thresholds": "Green ≤ 3%  ·  Red > 8%"
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "chargeback_rate_ltm",
@@ -5099,7 +5112,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "0.2%",
           "status": "green",
-          "thresholds": "Green ≤ 0%  ·  Red > 2%"
+          "thresholds": "Green ≤ 0.5%  ·  Red > 1.5%"
         },
         {
           "name": "settlement_delay_p95",
@@ -5121,17 +5134,17 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "supplier_pay_punctuality",
           "label": "Supplier Pay Regularity",
           "source": "Bank",
-          "value": "116.7%",
+          "value": "100.0%",
           "status": "green",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ad_spend_ratio_3m",
           "label": "Ad Spend Ratio (3m)",
           "source": "Bank",
-          "value": "1.8%",
+          "value": "1.9%",
           "status": "green",
-          "thresholds": "Green ≤ 15%  ·  Red > 30%"
+          "thresholds": "Green ≤ 15.0%  ·  Red > 30.0%"
         },
         {
           "name": "vat_punctuality",
@@ -5139,7 +5152,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Accounting",
           "value": "100.0%",
           "status": "green",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "gross_margin_avg_6m",
@@ -5147,7 +5160,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Accounting",
           "value": "23.0%",
           "status": "amber",
-          "thresholds": "Green ≥ 35%  ·  Red < 15%"
+          "thresholds": "Green ≥ 35.0%  ·  Red < 15.0%"
         },
         {
           "name": "bank_psp_recon_delta",
@@ -5155,7 +5168,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Cross-source",
           "value": "6.0%",
           "status": "amber",
-          "thresholds": "Green ≤ 5%  ·  Red > 20%"
+          "thresholds": "Green ≤ 5.0%  ·  Red > 20.0%"
         },
         {
           "name": "marketplace_account_health_avg",
@@ -5169,25 +5182,25 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "cancellation_rate_90d",
           "label": "Cancellation Rate (90d)",
           "source": "Webshop",
-          "value": "2.7%",
+          "value": "2.6%",
           "status": "green",
-          "thresholds": "Green ≤ 5%  ·  Red > 12%"
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "return_rate_90d",
           "label": "Return Rate (90d)",
           "source": "Webshop",
-          "value": "2.2%",
+          "value": "1.9%",
           "status": "green",
-          "thresholds": "Green ≤ 8%  ·  Red > 15%"
+          "thresholds": "Green ≤ 5.0%  ·  Red > 12.0%"
         },
         {
           "name": "fulfillment_timeliness_pct",
           "label": "Fulfillment On-Time Rate",
           "source": "Webshop",
-          "value": "89.7%",
+          "value": "88.5%",
           "status": "amber",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ubo_director_match",
@@ -5198,47 +5211,47 @@ input, select, textarea { font: inherit; color: inherit; }
           "thresholds": "Must match"
         }
       ],
-      "ml_score": 2.267062070753487e-06,
+      "ml_score": 0.025146949898035547,
       "ml_top_features": [
-        {
-          "name": "revenue_volatility_180d",
-          "label": "Revenue Volatility 180D",
-          "importance": 29.4
-        },
         {
           "name": "marketplace_account_health_avg",
           "label": "Marketplace Health Score",
-          "importance": 20.3
-        },
-        {
-          "name": "dispute_win_rate",
-          "label": "Dispute Win Rate",
-          "importance": 11.7
+          "importance": 30.1
         },
         {
           "name": "marketplace_negative_feedback_rate",
           "label": "Marketplace Negative Feedback Rate",
-          "importance": 10.7
+          "importance": 10.9
+        },
+        {
+          "name": "revenue_volatility_180d",
+          "label": "Revenue Volatility 180D",
+          "importance": 10.8
+        },
+        {
+          "name": "dispute_win_rate",
+          "label": "Dispute Win Rate",
+          "importance": 9.9
         },
         {
           "name": "chargeback_rate_ltm",
           "label": "Chargeback Rate (LTM)",
-          "importance": 7.3
+          "importance": 8.1
+        },
+        {
+          "name": "ad_spend_ratio_3m",
+          "label": "Ad Spend Ratio (3m)",
+          "importance": 6.3
+        },
+        {
+          "name": "revenue_bank_delta_avg",
+          "label": "Revenue Bank Delta Avg",
+          "importance": 5.7
         },
         {
           "name": "marketplace_late_shipment_rate",
           "label": "Marketplace Late Shipment Rate",
-          "importance": 6.4
-        },
-        {
-          "name": "refund_rate_30d",
-          "label": "Refund Rate 30D",
-          "importance": 5.2
-        },
-        {
-          "name": "chargeback_rate_30d",
-          "label": "Chargeback Rate 30D",
-          "importance": 3.8
+          "importance": 5.7
         }
       ],
       "scenario": "Healthy merchant"
@@ -5258,12 +5271,13 @@ input, select, textarea { font: inherit; color: inherit; }
       "manual_review_flags": [
         "0 red flags, 6 amber flags"
       ],
+      "signal_pass_rate": 0.6,
       "scorecard": [
         {
           "name": "net_cashflow_coverage",
           "label": "Cashflow Coverage Ratio",
           "source": "Bank",
-          "value": "7.99×",
+          "value": "8.10×",
           "status": "green",
           "thresholds": "Green ≥ 1.8×  ·  Red < 1.2×"
         },
@@ -5271,9 +5285,9 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "revenue_volatility_90d",
           "label": "Revenue Volatility (90d)",
           "source": "Bank",
-          "value": "33.3%",
+          "value": "35.7%",
           "status": "amber",
-          "thresholds": "Green ≤ 25%  ·  Red > 45%"
+          "thresholds": "Green ≤ 25.0%  ·  Red > 45.0%"
         },
         {
           "name": "overdraft_dependency",
@@ -5281,13 +5295,13 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Bank",
           "value": "0.0%",
           "status": "green",
-          "thresholds": "Green ≤ 10%  ·  Red > 50%"
+          "thresholds": "Green ≤ 10.0%  ·  Red > 50.0%"
         },
         {
           "name": "days_cash_on_hand",
           "label": "Days Cash on Hand",
           "source": "Bank",
-          "value": "621.0 days",
+          "value": "742.4 days",
           "status": "green",
           "thresholds": "Green ≥ 45d  ·  Red < 15d"
         },
@@ -5297,7 +5311,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "2.4%",
           "status": "green",
-          "thresholds": "Green ≤ 3%  ·  Red > 8%"
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "chargeback_rate_ltm",
@@ -5305,7 +5319,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "0.6%",
           "status": "amber",
-          "thresholds": "Green ≤ 0%  ·  Red > 2%"
+          "thresholds": "Green ≤ 0.5%  ·  Red > 1.5%"
         },
         {
           "name": "settlement_delay_p95",
@@ -5327,17 +5341,17 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "supplier_pay_punctuality",
           "label": "Supplier Pay Regularity",
           "source": "Bank",
-          "value": "116.7%",
+          "value": "100.0%",
           "status": "green",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ad_spend_ratio_3m",
           "label": "Ad Spend Ratio (3m)",
           "source": "Bank",
-          "value": "3.7%",
+          "value": "3.2%",
           "status": "green",
-          "thresholds": "Green ≤ 15%  ·  Red > 30%"
+          "thresholds": "Green ≤ 15.0%  ·  Red > 30.0%"
         },
         {
           "name": "vat_punctuality",
@@ -5345,7 +5359,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Accounting",
           "value": "100.0%",
           "status": "green",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "gross_margin_avg_6m",
@@ -5353,7 +5367,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Accounting",
           "value": "33.9%",
           "status": "amber",
-          "thresholds": "Green ≥ 35%  ·  Red < 15%"
+          "thresholds": "Green ≥ 35.0%  ·  Red < 15.0%"
         },
         {
           "name": "bank_psp_recon_delta",
@@ -5361,7 +5375,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Cross-source",
           "value": "4.7%",
           "status": "green",
-          "thresholds": "Green ≤ 5%  ·  Red > 20%"
+          "thresholds": "Green ≤ 5.0%  ·  Red > 20.0%"
         },
         {
           "name": "marketplace_account_health_avg",
@@ -5377,23 +5391,23 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Webshop",
           "value": "2.2%",
           "status": "green",
-          "thresholds": "Green ≤ 5%  ·  Red > 12%"
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "return_rate_90d",
           "label": "Return Rate (90d)",
           "source": "Webshop",
-          "value": "5.3%",
-          "status": "green",
-          "thresholds": "Green ≤ 8%  ·  Red > 15%"
+          "value": "5.4%",
+          "status": "amber",
+          "thresholds": "Green ≤ 5.0%  ·  Red > 12.0%"
         },
         {
           "name": "fulfillment_timeliness_pct",
           "label": "Fulfillment On-Time Rate",
           "source": "Webshop",
-          "value": "90.1%",
+          "value": "90.2%",
           "status": "green",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ubo_director_match",
@@ -5404,47 +5418,47 @@ input, select, textarea { font: inherit; color: inherit; }
           "thresholds": "Must match"
         }
       ],
-      "ml_score": 2.267062070753487e-06,
+      "ml_score": 0.025146949898035547,
       "ml_top_features": [
-        {
-          "name": "revenue_volatility_180d",
-          "label": "Revenue Volatility 180D",
-          "importance": 29.4
-        },
         {
           "name": "marketplace_account_health_avg",
           "label": "Marketplace Health Score",
-          "importance": 20.3
-        },
-        {
-          "name": "dispute_win_rate",
-          "label": "Dispute Win Rate",
-          "importance": 11.7
+          "importance": 30.1
         },
         {
           "name": "marketplace_negative_feedback_rate",
           "label": "Marketplace Negative Feedback Rate",
-          "importance": 10.7
+          "importance": 10.9
+        },
+        {
+          "name": "revenue_volatility_180d",
+          "label": "Revenue Volatility 180D",
+          "importance": 10.8
+        },
+        {
+          "name": "dispute_win_rate",
+          "label": "Dispute Win Rate",
+          "importance": 9.9
         },
         {
           "name": "chargeback_rate_ltm",
           "label": "Chargeback Rate (LTM)",
-          "importance": 7.3
+          "importance": 8.1
+        },
+        {
+          "name": "ad_spend_ratio_3m",
+          "label": "Ad Spend Ratio (3m)",
+          "importance": 6.3
+        },
+        {
+          "name": "revenue_bank_delta_avg",
+          "label": "Revenue Bank Delta Avg",
+          "importance": 5.7
         },
         {
           "name": "marketplace_late_shipment_rate",
           "label": "Marketplace Late Shipment Rate",
-          "importance": 6.4
-        },
-        {
-          "name": "refund_rate_30d",
-          "label": "Refund Rate 30D",
-          "importance": 5.2
-        },
-        {
-          "name": "chargeback_rate_30d",
-          "label": "Chargeback Rate 30D",
-          "importance": 3.8
+          "importance": 5.7
         }
       ],
       "scenario": "Flagged for review"
@@ -5466,12 +5480,13 @@ input, select, textarea { font: inherit; color: inherit; }
         "KvK registration is not active."
       ],
       "manual_review_flags": [],
+      "signal_pass_rate": 0.0,
       "scorecard": [
         {
           "name": "net_cashflow_coverage",
           "label": "Cashflow Coverage Ratio",
           "source": "Bank",
-          "value": "45.67×",
+          "value": "44.89×",
           "status": "green",
           "thresholds": "Green ≥ 1.8×  ·  Red < 1.2×"
         },
@@ -5479,9 +5494,9 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "revenue_volatility_90d",
           "label": "Revenue Volatility (90d)",
           "source": "Bank",
-          "value": "49.0%",
+          "value": "45.8%",
           "status": "red",
-          "thresholds": "Green ≤ 25%  ·  Red > 45%"
+          "thresholds": "Green ≤ 25.0%  ·  Red > 45.0%"
         },
         {
           "name": "overdraft_dependency",
@@ -5489,13 +5504,13 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Bank",
           "value": "0.0%",
           "status": "green",
-          "thresholds": "Green ≤ 10%  ·  Red > 50%"
+          "thresholds": "Green ≤ 10.0%  ·  Red > 50.0%"
         },
         {
           "name": "days_cash_on_hand",
           "label": "Days Cash on Hand",
           "source": "Bank",
-          "value": "531.1 days",
+          "value": "636.5 days",
           "status": "green",
           "thresholds": "Green ≥ 45d  ·  Red < 15d"
         },
@@ -5505,7 +5520,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "14.0%",
           "status": "red",
-          "thresholds": "Green ≤ 3%  ·  Red > 8%"
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "chargeback_rate_ltm",
@@ -5513,7 +5528,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "2.0%",
           "status": "red",
-          "thresholds": "Green ≤ 0%  ·  Red > 2%"
+          "thresholds": "Green ≤ 0.5%  ·  Red > 1.5%"
         },
         {
           "name": "settlement_delay_p95",
@@ -5537,15 +5552,15 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Bank",
           "value": "100.0%",
           "status": "green",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ad_spend_ratio_3m",
           "label": "Ad Spend Ratio (3m)",
           "source": "Bank",
-          "value": "7.1%",
+          "value": "8.2%",
           "status": "green",
-          "thresholds": "Green ≤ 15%  ·  Red > 30%"
+          "thresholds": "Green ≤ 15.0%  ·  Red > 30.0%"
         },
         {
           "name": "vat_punctuality",
@@ -5553,7 +5568,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Accounting",
           "value": "50.0%",
           "status": "red",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "gross_margin_avg_6m",
@@ -5561,7 +5576,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Accounting",
           "value": "47.5%",
           "status": "green",
-          "thresholds": "Green ≥ 35%  ·  Red < 15%"
+          "thresholds": "Green ≥ 35.0%  ·  Red < 15.0%"
         },
         {
           "name": "bank_psp_recon_delta",
@@ -5569,7 +5584,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Cross-source",
           "value": "8.3%",
           "status": "amber",
-          "thresholds": "Green ≤ 5%  ·  Red > 20%"
+          "thresholds": "Green ≤ 5.0%  ·  Red > 20.0%"
         },
         {
           "name": "marketplace_account_health_avg",
@@ -5584,16 +5599,16 @@ input, select, textarea { font: inherit; color: inherit; }
           "label": "Cancellation Rate (90d)",
           "source": "Webshop",
           "value": "10.0%",
-          "status": "amber",
-          "thresholds": "Green ≤ 5%  ·  Red > 12%"
+          "status": "red",
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "return_rate_90d",
           "label": "Return Rate (90d)",
           "source": "Webshop",
-          "value": "10.0%",
-          "status": "amber",
-          "thresholds": "Green ≤ 8%  ·  Red > 15%"
+          "value": "15.0%",
+          "status": "red",
+          "thresholds": "Green ≤ 5.0%  ·  Red > 12.0%"
         },
         {
           "name": "fulfillment_timeliness_pct",
@@ -5601,7 +5616,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Webshop",
           "value": "70.0%",
           "status": "amber",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ubo_director_match",
@@ -5612,47 +5627,47 @@ input, select, textarea { font: inherit; color: inherit; }
           "thresholds": "Must match"
         }
       ],
-      "ml_score": 0.9999604755042667,
+      "ml_score": 0.793061534390419,
       "ml_top_features": [
-        {
-          "name": "revenue_volatility_180d",
-          "label": "Revenue Volatility 180D",
-          "importance": 29.4
-        },
         {
           "name": "marketplace_account_health_avg",
           "label": "Marketplace Health Score",
-          "importance": 20.3
-        },
-        {
-          "name": "dispute_win_rate",
-          "label": "Dispute Win Rate",
-          "importance": 11.7
+          "importance": 30.1
         },
         {
           "name": "marketplace_negative_feedback_rate",
           "label": "Marketplace Negative Feedback Rate",
-          "importance": 10.7
+          "importance": 10.9
+        },
+        {
+          "name": "revenue_volatility_180d",
+          "label": "Revenue Volatility 180D",
+          "importance": 10.8
+        },
+        {
+          "name": "dispute_win_rate",
+          "label": "Dispute Win Rate",
+          "importance": 9.9
         },
         {
           "name": "chargeback_rate_ltm",
           "label": "Chargeback Rate (LTM)",
-          "importance": 7.3
+          "importance": 8.1
+        },
+        {
+          "name": "ad_spend_ratio_3m",
+          "label": "Ad Spend Ratio (3m)",
+          "importance": 6.3
+        },
+        {
+          "name": "revenue_bank_delta_avg",
+          "label": "Revenue Bank Delta Avg",
+          "importance": 5.7
         },
         {
           "name": "marketplace_late_shipment_rate",
           "label": "Marketplace Late Shipment Rate",
-          "importance": 6.4
-        },
-        {
-          "name": "refund_rate_30d",
-          "label": "Refund Rate 30D",
-          "importance": 5.2
-        },
-        {
-          "name": "chargeback_rate_30d",
-          "label": "Chargeback Rate 30D",
-          "importance": 3.8
+          "importance": 5.7
         }
       ],
       "scenario": "Credit decline"
@@ -5674,12 +5689,13 @@ input, select, textarea { font: inherit; color: inherit; }
         "UBO / director identity mismatch — application declined pending KYC resolution."
       ],
       "manual_review_flags": [],
+      "signal_pass_rate": 0.0,
       "scorecard": [
         {
           "name": "net_cashflow_coverage",
           "label": "Cashflow Coverage Ratio",
           "source": "Bank",
-          "value": "44.28×",
+          "value": "44.78×",
           "status": "green",
           "thresholds": "Green ≥ 1.8×  ·  Red < 1.2×"
         },
@@ -5687,9 +5703,9 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "revenue_volatility_90d",
           "label": "Revenue Volatility (90d)",
           "source": "Bank",
-          "value": "57.9%",
+          "value": "58.9%",
           "status": "red",
-          "thresholds": "Green ≤ 25%  ·  Red > 45%"
+          "thresholds": "Green ≤ 25.0%  ·  Red > 45.0%"
         },
         {
           "name": "overdraft_dependency",
@@ -5697,13 +5713,13 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Bank",
           "value": "0.0%",
           "status": "green",
-          "thresholds": "Green ≤ 10%  ·  Red > 50%"
+          "thresholds": "Green ≤ 10.0%  ·  Red > 50.0%"
         },
         {
           "name": "days_cash_on_hand",
           "label": "Days Cash on Hand",
           "source": "Bank",
-          "value": "430.2 days",
+          "value": "547.9 days",
           "status": "green",
           "thresholds": "Green ≥ 45d  ·  Red < 15d"
         },
@@ -5713,7 +5729,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "8.8%",
           "status": "red",
-          "thresholds": "Green ≤ 3%  ·  Red > 8%"
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "chargeback_rate_ltm",
@@ -5721,7 +5737,7 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "PSP",
           "value": "2.2%",
           "status": "red",
-          "thresholds": "Green ≤ 0%  ·  Red > 2%"
+          "thresholds": "Green ≤ 0.5%  ·  Red > 1.5%"
         },
         {
           "name": "settlement_delay_p95",
@@ -5745,15 +5761,15 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Bank",
           "value": "100.0%",
           "status": "green",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ad_spend_ratio_3m",
           "label": "Ad Spend Ratio (3m)",
           "source": "Bank",
-          "value": "6.3%",
+          "value": "6.2%",
           "status": "green",
-          "thresholds": "Green ≤ 15%  ·  Red > 30%"
+          "thresholds": "Green ≤ 15.0%  ·  Red > 30.0%"
         },
         {
           "name": "vat_punctuality",
@@ -5761,15 +5777,15 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Accounting",
           "value": "50.0%",
           "status": "red",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "gross_margin_avg_6m",
           "label": "Gross Margin (6m avg)",
           "source": "Accounting",
-          "value": "59.0%",
+          "value": "59.1%",
           "status": "green",
-          "thresholds": "Green ≥ 35%  ·  Red < 15%"
+          "thresholds": "Green ≥ 35.0%  ·  Red < 15.0%"
         },
         {
           "name": "bank_psp_recon_delta",
@@ -5777,13 +5793,13 @@ input, select, textarea { font: inherit; color: inherit; }
           "source": "Cross-source",
           "value": "6.2%",
           "status": "amber",
-          "thresholds": "Green ≤ 5%  ·  Red > 20%"
+          "thresholds": "Green ≤ 5.0%  ·  Red > 20.0%"
         },
         {
           "name": "marketplace_account_health_avg",
           "label": "Marketplace Health Score",
           "source": "Marketplace",
-          "value": "5.7 / 10",
+          "value": "5.6 / 10",
           "status": "amber",
           "thresholds": "Green ≥ 8/10  ·  Red < 5/10"
         },
@@ -5791,25 +5807,25 @@ input, select, textarea { font: inherit; color: inherit; }
           "name": "cancellation_rate_90d",
           "label": "Cancellation Rate (90d)",
           "source": "Webshop",
-          "value": "12.8%",
+          "value": "12.3%",
           "status": "red",
-          "thresholds": "Green ≤ 5%  ·  Red > 12%"
+          "thresholds": "Green ≤ 3.0%  ·  Red > 8.0%"
         },
         {
           "name": "return_rate_90d",
           "label": "Return Rate (90d)",
           "source": "Webshop",
-          "value": "17.5%",
+          "value": "17.9%",
           "status": "red",
-          "thresholds": "Green ≤ 8%  ·  Red > 15%"
+          "thresholds": "Green ≤ 5.0%  ·  Red > 12.0%"
         },
         {
           "name": "fulfillment_timeliness_pct",
           "label": "Fulfillment On-Time Rate",
           "source": "Webshop",
-          "value": "44.2%",
+          "value": "44.9%",
           "status": "red",
-          "thresholds": "Green ≥ 90%  ·  Red < 70%"
+          "thresholds": "Green ≥ 90.0%  ·  Red < 70.0%"
         },
         {
           "name": "ubo_director_match",
@@ -5820,47 +5836,47 @@ input, select, textarea { font: inherit; color: inherit; }
           "thresholds": "Must match"
         }
       ],
-      "ml_score": 0.9999604755042667,
+      "ml_score": 0.793061534390419,
       "ml_top_features": [
-        {
-          "name": "revenue_volatility_180d",
-          "label": "Revenue Volatility 180D",
-          "importance": 29.4
-        },
         {
           "name": "marketplace_account_health_avg",
           "label": "Marketplace Health Score",
-          "importance": 20.3
-        },
-        {
-          "name": "dispute_win_rate",
-          "label": "Dispute Win Rate",
-          "importance": 11.7
+          "importance": 30.1
         },
         {
           "name": "marketplace_negative_feedback_rate",
           "label": "Marketplace Negative Feedback Rate",
-          "importance": 10.7
+          "importance": 10.9
+        },
+        {
+          "name": "revenue_volatility_180d",
+          "label": "Revenue Volatility 180D",
+          "importance": 10.8
+        },
+        {
+          "name": "dispute_win_rate",
+          "label": "Dispute Win Rate",
+          "importance": 9.9
         },
         {
           "name": "chargeback_rate_ltm",
           "label": "Chargeback Rate (LTM)",
-          "importance": 7.3
+          "importance": 8.1
+        },
+        {
+          "name": "ad_spend_ratio_3m",
+          "label": "Ad Spend Ratio (3m)",
+          "importance": 6.3
+        },
+        {
+          "name": "revenue_bank_delta_avg",
+          "label": "Revenue Bank Delta Avg",
+          "importance": 5.7
         },
         {
           "name": "marketplace_late_shipment_rate",
           "label": "Marketplace Late Shipment Rate",
-          "importance": 6.4
-        },
-        {
-          "name": "refund_rate_30d",
-          "label": "Refund Rate 30D",
-          "importance": 5.2
-        },
-        {
-          "name": "chargeback_rate_30d",
-          "label": "Chargeback Rate 30D",
-          "importance": 3.8
+          "importance": 5.7
         }
       ],
       "scenario": "KYC decline"
@@ -6148,8 +6164,10 @@ input, select, textarea { font: inherit; color: inherit; }
     const sc = m.scorecard;
     const counts = { green: 0, amber: 0, red: 0, none: 0 };
     sc.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
-    const greenPct = Math.round(counts.green / sc.length * 100);
-    const tier = greenPct >= 80 ? 'A' : greenPct >= 60 ? 'B' : greenPct >= 40 ? 'C' : 'D';
+    // Signal Pass Rate is a DISPLAY-ONLY health index — never the decision.
+    const passRate = (m.signal_pass_rate != null)
+      ? Math.round(m.signal_pass_rate * 100)
+      : Math.round(counts.green / sc.length * 100);
 
     if (badge) {
       badge.className = 'badge ' + ({ APPROVE: 'badge-good', MANUAL_REVIEW: 'badge-warn', DECLINE: 'badge-bad' }[m.decision] || '');
@@ -6161,29 +6179,29 @@ input, select, textarea { font: inherit; color: inherit; }
 
     const policySteps = [
       {
-        label: '1 · Hard stop check',
+        label: '1 · Hard knockout check',
         text: hardStop
-          ? `Hard stop triggered: ${m.reason_codes.map(c => c.replace(/_/g,' ')).join(', ')}. Automatic decline — score not evaluated.`
-          : `No hard stops triggered. KYC, sanctions, UBO, and reconciliation checks all passed.`
+          ? `Hard knockout triggered: ${m.reason_codes.map(c => c.replace(/_/g,' ')).join(', ')}. Automatic decline — scored gates not evaluated.`
+          : `No hard knockouts triggered. Sanctions, KvK, UBO, recon, history, GMV and balance checks all passed.`
       },
       {
-        label: '2 · Signal summary',
-        text: `${counts.green} green (pass), ${counts.amber} amber (caution), ${counts.red} red (flag) across ${sourcesSet.size} data sources (${Array.from(sourcesSet).join(', ')}).`
+        label: '2 · Scored gate summary',
+        text: `${counts.red} red (flag), ${counts.amber} amber (caution), ${counts.green} green (pass) across ${sourcesSet.size} data sources (${Array.from(sourcesSet).join(', ')}).`
       },
       {
-        label: '3 · Risk tier & decision',
-        text: `Score: ${greenPct}/100 → Tier ${tier}. ${
+        label: '3 · Rules decision',
+        text: `${
           m.decision === 'APPROVE'
-            ? `Within approval band. Provisional offer issued.`
+            ? `< 2 red gates and < 5 total flags → APPROVE (still credit-officer reviewed in Year 1).`
             : m.decision === 'MANUAL_REVIEW'
-            ? `${counts.amber} amber flags require credit officer review before any commitment.`
-            : `Not eligible for approval at this time. See reason codes.`
-        }`
+            ? `2 red gates or ≥ 5 total flags → MANUAL_REVIEW by a credit officer before any commitment.`
+            : `≥ 3 red gates or a hard knockout → DECLINE. See reason codes.`
+        } Signal Pass Rate ${passRate}% is shown for context only — it does not drive this decision.`
       },
       {
         label: '4 · Limit & tenor',
         text: m.max_amount > 0
-          ? `Approved up to ${fmtEUR(m.max_amount)} for ${m.tenor_max_months} months${m.pricing_band ? ` (pricing band ${m.pricing_band})` : ''}. Sized as min(25% of 90d GMV, 3× monthly cashflow, liquidity cap).`
+          ? `Approved up to ${fmtEUR(m.max_amount)} for ${m.tenor_max_months} months${m.pricing_band ? ` (pricing band ${m.pricing_band})` : ''}. Sized as min(requested, monthly cashflow × tenor × 0.33, monthly GMV × 2.5, €25k cap).`
           : 'No limit available — application declined pending resolution of flagged items.'
       }
     ];

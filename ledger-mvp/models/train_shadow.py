@@ -1,15 +1,23 @@
 """
-models/train_shadow.py — Train and score with the shadow ML model.
+models/train_shadow.py — LAYER 4: Train and score with the shadow ML model.
 
-WARNING: The shadow model produces scores ONLY. It does not make lending decisions.
+WARNING: The shadow model produces a CALIBRATED probability of default ONLY.
+It is logged for monitoring but does NOT make — or influence — any lending
+decision (strictly shadow mode).
 "The plan should not claim that machine learning is superior before
  portfolio data exist." — Business Plan, Section 3.2
+
+Architecture: scikit-learn GradientBoostingClassifier (200 estimators,
+max depth 4, learning rate 0.05, no early stopping) wrapped in
+CalibratedClassifierCV so the output is a calibrated P(default).
 """
 
+import logging
 import pickle
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
@@ -17,6 +25,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
+
+logger = logging.getLogger("ledger.shadow_ml")
 
 # Features used by the shadow ML model.
 # Keep in sync with features/pipeline.py and features/missing_handler.py.
@@ -110,58 +120,93 @@ def prepare_training_data(
     return X, y
 
 
+def _build_base_estimator(model_type: str):
+    """Construct the uncalibrated base estimator."""
+    if model_type == "gbm":
+        # scikit-learn GradientBoostingClassifier — no early stopping.
+        return GradientBoostingClassifier(
+            n_estimators=config.SHADOW_N_ESTIMATORS,    # 200
+            max_depth=config.SHADOW_MAX_DEPTH,          # 4
+            learning_rate=config.SHADOW_LEARNING_RATE,  # 0.05
+            random_state=42,
+        )
+    if model_type == "logistic":
+        return LogisticRegression(
+            max_iter=1000, random_state=42, class_weight="balanced"
+        )
+    raise ValueError(f"Unknown model_type: {model_type}")
+
+
+def feature_importances(model) -> dict:
+    """
+    Global feature importances for either a bare estimator or a
+    CalibratedClassifierCV wrapper (averaged across calibration folds).
+    Returns {} if the underlying estimator exposes none.
+    """
+    estimators = []
+    if hasattr(model, "calibrated_classifiers_"):
+        for cc in model.calibrated_classifiers_:
+            est = getattr(cc, "estimator", None)
+            if est is not None:
+                estimators.append(est)
+    else:
+        estimators.append(model)
+
+    vecs = []
+    for est in estimators:
+        if hasattr(est, "feature_importances_"):
+            vecs.append(np.asarray(est.feature_importances_, dtype=float))
+        elif hasattr(est, "coef_"):
+            vecs.append(np.abs(np.asarray(est.coef_[0], dtype=float)))
+    if not vecs:
+        return {}
+    mean_imp = np.mean(vecs, axis=0)
+    return dict(zip(ML_FEATURES, mean_imp))
+
+
 def train_shadow_model(
     X: pd.DataFrame,
     y: pd.Series,
     model_type: str = "gbm",
 ) -> dict:
     """
-    Train a shadow model and return model + evaluation metrics.
+    Train the shadow model and return model + evaluation metrics.
 
-    Parameters
-    ----------
-    X : pd.DataFrame — feature matrix
-    y : pd.Series — binary target (1 = default)
-    model_type : str — "gbm" or "logistic"
+    The base estimator is wrapped in CalibratedClassifierCV so predict_proba
+    returns a CALIBRATED P(default). Importances are read from the base
+    estimators inside the calibration wrapper (global importances, not SHAP).
 
-    Returns
-    -------
-    dict with keys: model, auc_cv, brier_cv, feature_importances
+    Returns dict with keys: model, auc_cv_mean/std, brier_cv_mean,
+    feature_importances, n_samples, n_positives, model_type, note.
     """
-    if model_type == "gbm":
-        model = GradientBoostingClassifier(
-            n_estimators=config.SHADOW_N_ESTIMATORS,
-            max_depth=config.SHADOW_MAX_DEPTH,
-            learning_rate=config.SHADOW_LEARNING_RATE,
-            random_state=42,
-        )
-    elif model_type == "logistic":
-        model = LogisticRegression(
-            max_iter=1000, random_state=42, class_weight="balanced"
-        )
-    else:
-        raise ValueError(f"Unknown model_type: {model_type}")
+    base = _build_base_estimator(model_type)
 
-    # Cross-validated evaluation
-    auc_scores = cross_val_score(model, X, y, cv=5, scoring="roc_auc")
-    brier_scores = cross_val_score(
-        model, X, y, cv=5, scoring="neg_brier_score"
+    # Calibrated wrapper -> calibrated probability of default.
+    model = CalibratedClassifierCV(
+        base,
+        method=config.SHADOW_CALIBRATION_METHOD,
+        cv=config.SHADOW_CALIBRATION_CV,
     )
 
-    # Fit on full data for scoring
+    # Cross-validated evaluation of the calibrated pipeline.
+    auc_scores = cross_val_score(model, X, y, cv=5, scoring="roc_auc")
+    brier_scores = cross_val_score(model, X, y, cv=5, scoring="neg_brier_score")
+
+    # Fit on full data for scoring.
     model.fit(X, y)
+    importances = feature_importances(model)
 
-    # Feature importances
-    if hasattr(model, "feature_importances_"):
-        importances = dict(zip(ML_FEATURES, model.feature_importances_))
-    else:
-        importances = dict(zip(ML_FEATURES, abs(model.coef_[0])))
-
-    # Persist model
+    # Persist model.
     model_path = Path(config.SHADOW_MODEL_PATH)
     model_path.parent.mkdir(exist_ok=True)
     with open(model_path, "wb") as fh:
         pickle.dump(model, fh)
+
+    logger.info(
+        "Shadow model trained (SHADOW ONLY — not used for decisions): "
+        "type=%s, n=%d, positives=%d, cv_auc=%.4f",
+        model_type, len(X), int(y.sum()), float(np.mean(auc_scores)),
+    )
 
     return {
         "model": model,
@@ -172,16 +217,18 @@ def train_shadow_model(
         "n_samples": len(X),
         "n_positives": int(y.sum()),
         "model_type": model_type,
-        "note": "SHADOW ONLY — not used for automated decisions",
+        "note": "SHADOW ONLY — calibrated P(default), logged not used for decisions",
     }
 
 
 def score_merchant(features: dict, model=None) -> float | None:
     """
-    Score a single merchant using the shadow model.
-    Returns probability of default (0-1) or None if model not available.
+    Score a single merchant with the shadow model.
+
+    Returns a CALIBRATED probability of default (0-1), or None if the model is
+    not available. This value is logged for monitoring only — it does NOT feed
+    any credit decision.
     """
-    
     if model is None:
         model_path = Path(config.SHADOW_MODEL_PATH)
         if not model_path.exists():
@@ -190,4 +237,6 @@ def score_merchant(features: dict, model=None) -> float | None:
             model = pickle.load(fh)
 
     X = pd.DataFrame([{k: features.get(k, 0) for k in ML_FEATURES}])
-    return float(model.predict_proba(X)[0, 1])
+    score = float(model.predict_proba(X)[0, 1])
+    logger.debug("Shadow P(default)=%.4f logged (not used in decision)", score)
+    return score
