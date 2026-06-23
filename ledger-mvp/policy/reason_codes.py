@@ -32,4 +32,5 @@ REASON_EXPLANATIONS = {
     # New — Webshop
     "HIGH_CANCELLATION_RATE":     "Order cancellation rate exceeds 8% — demand quality concern.",
     "HIGH_RETURN_RATE":           "Return rate exceeds 12% — product or fulfilment quality concern.",
+    "BELOW_MIN_LOAN_SIZE":        "Calculated loan amount falls below the EUR 10,000 minimum — insufficient cashflow or GMV for this request.",
 }

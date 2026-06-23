@@ -133,8 +133,8 @@ def _try_load(source_class):
 
 @st.cache_data
 def load_data():
-    bank_df         = BankTransactionSource().load()
-    psp_df          = PSPTransactionSource().load()
+    bank_df         = BankTransactionSource().load_and_validate()
+    psp_df          = PSPTransactionSource().load_and_validate()
     merchants_df    = pd.read_parquet("data/merchants.parquet")
     applications_df = pd.read_parquet("data/loan_applications.parquet")
     webshop_df      = _try_load(WebshopOrderSource)

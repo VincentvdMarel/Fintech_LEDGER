@@ -22,10 +22,13 @@ Decision policy (config thresholds):
 Every loan in Year 1 also goes to manual credit-officer review.
 """
 
+import logging
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
+
+logger = logging.getLogger(__name__)
 from policy.knockouts import check_knockouts          # LAYER 1 — single source
 from policy.reason_codes import REASON_EXPLANATIONS
 
@@ -118,6 +121,11 @@ def _calculate_max_amount(f: dict) -> tuple[float, list[str]]:
     if hard_cap <= min(requested, cf_cap, rev_cap):
         codes.append("YEAR1_CAP")
 
+    # Enforce minimum loan size: below €10k is not a viable working-capital loan.
+    if 0 < max_amount < config.LOAN_MIN_EUR:
+        max_amount = 0
+        codes.append("BELOW_MIN_LOAN_SIZE")
+
     return round(max_amount, -2), codes                 # round to nearest €100
 
 
@@ -199,12 +207,12 @@ def credit_policy(features: dict) -> dict:
         pricing_band = _assign_pricing_band(
             red, amber, features.get("net_cashflow_coverage", 0)
         )
-        tenor_max = min(
-            features.get("requested_tenor_months", 6),
-            config.TENOR_MAX_MONTHS,
+        tenor_max = max(
+            config.TENOR_MIN_MONTHS,
+            min(features.get("requested_tenor_months", 6), config.TENOR_MAX_MONTHS),
         )
 
-    return {
+    result = {
         "decision": decision,
         "max_amount": max_amount,
         "pricing_band": pricing_band,
@@ -214,3 +222,8 @@ def credit_policy(features: dict) -> dict:
         "manual_review_flags": manual_flags,
         "signal_pass_rate": signal_pass_rate(red, amber),  # LAYER 3 display only
     }
+    logger.info(
+        "credit_policy decision=%s red=%d amber=%d max_amount=%s codes=%s",
+        decision, red, amber, max_amount, reason_codes,
+    )
+    return result

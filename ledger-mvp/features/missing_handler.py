@@ -163,7 +163,7 @@ def check_data_quality(feature_df: pd.DataFrame) -> dict:
     numeric_cols = feature_df.select_dtypes(include=[np.number]).columns
     for col in numeric_cols:
         missing_pct = feature_df[col].isna().mean()
-        if missing_pct > 0.40:
+        if missing_pct > 0.20:
             alerts[col] = {
                 "missing_pct": round(missing_pct, 3),
                 "status": "DATA_QUALITY_ALERT",

@@ -21,10 +21,13 @@ NOTE: refund rate and chargeback rate are NOT knockouts. They are scored gates
 (config.SCORED_GATES) and only contribute red/amber flags to the decision.
 """
 
+import logging
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
+
+logger = logging.getLogger(__name__)
 
 
 def check_knockouts(features: dict) -> list[str]:
@@ -43,7 +46,7 @@ def check_knockouts(features: dict) -> list[str]:
         codes.append("KVK_INVALID")
 
     # K3: UBO / director identity mismatch (KYC) — hard decline per spec §7
-    if not features.get("ubo_director_match", True):
+    if not features.get("ubo_director_match", False):  # default False = pessimistic
         codes.append("UBO_MISMATCH")
 
     # K4: Bank-PSP reconciliation gap > 20%
@@ -62,4 +65,6 @@ def check_knockouts(features: dict) -> list[str]:
     if features.get("negative_balance_pct_90d", 1.0) > config.MAX_NEGATIVE_BALANCE_PCT:
         codes.append("PERSISTENT_NEGATIVE_BALANCE")
 
+    if codes:
+        logger.warning("knockout triggered: %s", codes)
     return codes
