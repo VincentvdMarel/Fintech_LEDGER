@@ -5924,8 +5924,9 @@ model.<span class="t-fn">fit</span>(X_train, y_default)    <span class="t-com">#
     setText('aside-merchant-margin',  marginVal && marginVal !== '—' ? marginVal : '—');
     setText('aside-merchant-sources', mixParts.length ? mixParts.join(' · ') : '—');
 
-    // Aside pricing
-    const monthly = monthlyPayment(m.max_amount || m.requested_amount, 0.125, m.requested_tenor_months);
+    // Aside pricing — use band-specific APR from config.PRICING_BANDS
+    const ASIDE_APR = { A: 0.110, B: 0.125, C: 0.140 }[m.pricing_band] || 0.125;
+    const monthly = monthlyPayment(m.max_amount || m.requested_amount, ASIDE_APR, m.requested_tenor_months);
     setText('aside-amount',  fmtEUR(m.requested_amount));
     setText('aside-tenor',   m.requested_tenor_months + ' mo');
     setText('aside-monthly', fmtEUR(monthly));
@@ -6072,7 +6073,7 @@ model.<span class="t-fn">fit</span>(X_train, y_default)    <span class="t-com">#
       ).join('');
     }
 
-    // 15-feature scorecard
+    // 18-signal scorecard
     const scList = $('#scorecard-list');
     if (scList) {
       const statusLabels = { green: 'Pass', amber: 'Caution', red: 'Flag', none: 'No data' };
@@ -6254,8 +6255,11 @@ model.<span class="t-fn">fit</span>(X_train, y_default)    <span class="t-com">#
 
     if (statusEl) statusEl.className = 'offer-status ' + ({ APPROVE: 'offer-status-good', MANUAL_REVIEW: 'offer-status-warn', DECLINE: 'offer-status-bad' }[m.decision] || '');
 
+    // APR by pricing band — mirrors config.PRICING_BANDS (single source of truth)
+    const OFFER_APR = { A: 0.110, B: 0.125, C: 0.140 }[m.pricing_band] || 0.125;
+
     if (m.decision === 'APPROVE') {
-      const monthly = monthlyPayment(m.max_amount, 0.125, m.tenor_max_months);
+      const monthly = monthlyPayment(m.max_amount, OFFER_APR, m.tenor_max_months);
       const origFee = m.max_amount * 0.02;
       const totalCost = monthly * m.tenor_max_months - m.max_amount + origFee;
       if (statusEl)  statusEl.textContent  = '✓ Approved · provisional';
@@ -6265,7 +6269,7 @@ model.<span class="t-fn">fit</span>(X_train, y_default)    <span class="t-com">#
       if (monthlyEl) monthlyEl.textContent = fmtEUR(monthly);
       if (totalEl)   totalEl.textContent   = fmtEUR(totalCost);
     } else if (m.decision === 'MANUAL_REVIEW') {
-      const monthly = monthlyPayment(m.max_amount, 0.125, m.tenor_max_months);
+      const monthly = monthlyPayment(m.max_amount, OFFER_APR, m.tenor_max_months);
       const origFee = m.max_amount * 0.02;
       const totalCost = monthly * m.tenor_max_months - m.max_amount + origFee;
       if (statusEl)  statusEl.textContent  = '⟳ Manual review required';

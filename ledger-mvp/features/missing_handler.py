@@ -157,7 +157,7 @@ def apply_defaults(features: pd.Series) -> pd.Series:
 def check_data_quality(feature_df: pd.DataFrame) -> dict:
     """
     Check feature-level missing rates across the portfolio.
-    Returns dict of features with >40% missing (triggers data quality alert).
+    Returns dict of features with >20% missing (triggers data quality alert).
     """
     alerts = {}
     numeric_cols = feature_df.select_dtypes(include=[np.number]).columns

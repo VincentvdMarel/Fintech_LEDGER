@@ -2,8 +2,8 @@
 data/export_demo_json.py — Export pre-computed demo data for the HTML investor deck.
 
 Selects 4 representative merchants (one per decision type), computes their
-15-feature scorecard and credit-policy output, then patches the
-DEMO_DATA_START … DEMO_DATA_END block in ledger-deck_6.html.
+18-signal scorecard and credit-policy output, then patches the
+DEMO_DATA_START … DEMO_DATA_END block in ledger-deck_10.html.
 
 Run from the ledger-mvp directory:
     python data/export_demo_json.py
@@ -112,8 +112,13 @@ def _scorecard(feat_dict):
 
 
 def _try_load(cls):
-    try:    return cls().load_and_validate()
-    except FileNotFoundError: return None
+    try:
+        return cls().load_and_validate()
+    except FileNotFoundError:
+        return None
+    except (KeyError, ValueError, Exception) as exc:
+        print(f"  WARNING: {cls.__name__} loaded but failed validation ({exc}) — pessimistic defaults applied")
+        return None
 
 
 def _select(all_results):
@@ -169,11 +174,7 @@ def main():
     root = Path(__file__).parent.parent
     os.chdir(root)
 
-    # HTML deck lives in the project root (fall back to the parent dir if an
-    # older copy is kept one level up).
-    html_path = root / "ledger-deck_6.html"
-    if not html_path.exists() and (root.parent / "ledger-deck_6.html").exists():
-        html_path = root.parent / "ledger-deck_6.html"
+    html_path = root / "ledger-deck_10.html"
 
     print("=" * 60)
     print("  Ledger — HTML Demo Data Export")
@@ -277,7 +278,7 @@ def main():
     html_path.write_text(new_html, encoding="utf-8")
     print(f"  Patched {len(selected)} merchants into {html_path.name}")
     print("\n" + "=" * 60)
-    print("  Done. Open ledger-deck_6.html in a browser.")
+    print("  Done. Open ledger-deck_10.html in a browser.")
     print("=" * 60)
 
 

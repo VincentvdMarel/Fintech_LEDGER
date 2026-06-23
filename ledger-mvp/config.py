@@ -31,6 +31,8 @@ PRICING_BANDS = {
     "B": 0.125,   # 12.5%  (blended base case)
     "C": 0.140,   # 14.0%
 }
+SERVICE_FEE_ANNUAL = 0.02    # 2% annual service fee (used by HTML calculator and offer render)
+ORIGINATION_FEE    = 0.02    # 2% one-time origination fee at draw-down
 # Pricing-band assignment thresholds (see policy._assign_pricing_band)
 PRICING_A_MAX_AMBER = 1              # A: 0 red, <= 1 amber, coverage > A_MIN_COVERAGE
 PRICING_A_MIN_COVERAGE = 2.0

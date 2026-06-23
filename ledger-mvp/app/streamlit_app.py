@@ -193,6 +193,10 @@ try:
         )
         feat_dict = feat.to_dict()
 
+        # Run policy first so signal_pass_rate is sourced from the engine
+        # (15 scored-gates denominator — consistent with what the HTML deck shows).
+        pol = credit_policy(feat_dict)
+
         scorecard = build_scorecard(feat_dict)
 
         # Summary counts
@@ -207,15 +211,14 @@ try:
         s3.metric("🔴 Flag",    n_red)
         s4.metric("⚪ No data", n_nodata)
 
-        # Signal Pass Rate — DISPLAY-ONLY health index (green ÷ total signals).
+        # Signal Pass Rate — DISPLAY-ONLY health index, sourced from the policy
+        # engine (green scored gates ÷ 15 total scored gates). Matches the HTML deck.
         # This number does NOT drive the decision; the policy rules do.
-        total_signals = len(KEY_FEATURES)
-        pass_rate = n_green / total_signals if total_signals else 0.0
-        st.metric("Signal Pass Rate", f"{pass_rate * 100:.0f}%")
+        st.metric("Signal Pass Rate", f"{pol['signal_pass_rate'] * 100:.0f}%")
         st.caption(
             "Signal Pass Rate is a display-only health index "
-            "(green ÷ total signals). Phase 1 does **not** approve by a numeric "
-            "score — the decision below is derived purely from policy rules."
+            "(green scored gates ÷ 15 total). Phase 1 does **not** approve by a "
+            "numeric score — the decision below is derived purely from policy rules."
         )
 
         st.dataframe(
@@ -228,7 +231,6 @@ try:
         # Step 3: Credit decision
         # -----------------------------------------------------------------------
         st.header("3. Credit Decision")
-        pol = credit_policy(feat_dict)
 
         decision_color = {"APPROVE": "🟢", "MANUAL_REVIEW": "🟡", "DECLINE": "🔴"}
         st.subheader(
